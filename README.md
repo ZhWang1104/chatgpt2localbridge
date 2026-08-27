@@ -47,17 +47,17 @@
 
 ## Linux One-Click Prompt
 
-Repository: `https://github.com/Harzva/chatgpt2localbridge`
+Repository: `https://github.com/ZhWang1104/chatgpt2localbridge`
 
 Copy this prompt to a Linux shell agent:
 
 ```text
-Install ChatGPT2LocalBridge from https://github.com/Harzva/chatgpt2localbridge on this Linux host.
+Install the enhanced ChatGPT2LocalBridge fork from https://github.com/ZhWang1104/chatgpt2localbridge on this Linux host.
 Use one command, keep secrets local, and do not print .env.local, OAuth tokens,
 ngrok authtokens, cookies, or unlock codes into chat.
 
 Run:
-curl -fsSL https://raw.githubusercontent.com/Harzva/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | bash
 
 After install, report the local health result, the ChatGPT Connector fields, and
 the tunnel choice. If ngrok is selected, ask me for NGROK_AUTHTOKEN and optional
@@ -67,7 +67,7 @@ NGROK_DOMAIN. If Cloudflare is selected, explain quick tunnel vs named tunnel.
 Or run it yourself:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Harzva/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | bash
 ```
 
 The installer prints every Connector field you need to fill in ChatGPT, plus
@@ -84,10 +84,10 @@ setup prompt.
 
 ChatGPT2LocalBridge is a self-hosted **Codex / ChatGPT Plugin App**: a local desktop/operator app plus an MCP connector that lets ChatGPT access approved local workspaces after authorization. It is designed for people who want ChatGPT or Codex-style agents to inspect, bundle, download, trace, or operate on local project files without uploading the whole workspace elsewhere.
 
-The TypeScript build is the full OAuth MCP connector. A small Rust native
-preview also lives in [`rust/chatgpt2localbridge-rs`](./rust/chatgpt2localbridge-rs)
-for the local operator console, health checks, activity APIs, and a minimal MCP
-smoke surface.
+The TypeScript build is the single production OAuth/MCP engine used by the CLI,
+launchd service, and macOS app. A small Rust experiment remains in
+[`rust/chatgpt2localbridge-rs`](./rust/chatgpt2localbridge-rs), but it is not the
+runtime used by the macOS app or the supported Connector path.
 
 In this repository, **plugin app** means a small agent-facing product surface: a local app, a policy file, a tool catalog, trace records, and one or more ChatGPT/Codex-visible MCP tools. It is not a legacy ChatGPT plugin. It is best described as:
 
@@ -98,6 +98,21 @@ In this repository, **plugin app** means a small agent-facing product surface: a
 - **OAuth Local Workspace Bridge**
 
 > Unofficial project. Not affiliated with OpenAI.
+
+## Upstream And Attribution
+
+This enhanced fork is based on the original
+[`Harzva/chatgpt2localbridge`](https://github.com/Harzva/chatgpt2localbridge)
+project created by **Harzva**. The original project name, authorship, repository
+history, and MIT license are retained. This fork adds the large-repository
+coverage, resumable scanning, AST symbol index, CodeGraph integration, safer
+defaults, unified TypeScript runtime, and macOS/launchd packaging described
+below.
+
+For the original implementation and upstream development, visit the
+[original repository](https://github.com/Harzva/chatgpt2localbridge). For the
+enhanced version documented here, use
+[`ZhWang1104/chatgpt2localbridge`](https://github.com/ZhWang1104/chatgpt2localbridge).
 
 ## Build Your Own Plugin App
 
@@ -154,34 +169,33 @@ The intended product shape is a control plane, not just a raw shell bridge:
 Linux one-click installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Harzva/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | bash
 ```
 
 Optional Linux tunnel helpers:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Harzva/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | TUNNEL=cloudflare bash
-curl -fsSL https://raw.githubusercontent.com/Harzva/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | TUNNEL=ngrok NGROK_AUTHTOKEN=... NGROK_DOMAIN=my-bridge.ngrok-free.app bash
+curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | TUNNEL=cloudflare bash
+curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | TUNNEL=ngrok NGROK_AUTHTOKEN=... NGROK_DOMAIN=my-bridge.ngrok-free.app bash
 ```
 
 Temporary GitHub npx install, no clone required:
 
 ```bash
-npx github:Harzva/chatgpt2localbridge init --root ~/Projects
-set -a; source .env.local; set +a
-npx github:Harzva/chatgpt2localbridge --http 3838
+npx github:ZhWang1104/chatgpt2localbridge setup --root ~/Projects
+npx github:ZhWang1104/chatgpt2localbridge start
 ```
 
 Local clone flow:
 
 ```bash
-git clone https://github.com/harzva/chatgpt2localbridge.git
+git clone https://github.com/ZhWang1104/chatgpt2localbridge.git
 cd chatgpt2localbridge
 npm install
 npm run build
-node dist/index.js init --root ~/Projects
-set -a; source .env.local; set +a
-node dist/index.js --http 3838
+node dist/index.js setup --root ~/Projects
+node dist/index.js doctor
+node dist/index.js start
 ```
 
 Health check:
@@ -196,15 +210,6 @@ Local operator console:
 http://127.0.0.1:3838/app
 ```
 
-Rust native preview:
-
-```bash
-cargo run --manifest-path rust/chatgpt2localbridge-rs/Cargo.toml -- --http 3842
-```
-
-The Rust preview intentionally exposes a smaller MCP surface today:
-`initialize`, `tools/list`, `bridge.health`, `bridge.activity`, and `file.list`.
-
 Native macOS app:
 
 ```bash
@@ -212,8 +217,8 @@ npm run macos:install
 open /Applications/ChatGPT2LocalBridge.app
 ```
 
-The macOS app is a native AppKit/SwiftUI desktop console that embeds the Rust
-engine, uses the repository logo as its `.icns` icon, manages the local `3842`
+The macOS app is a native AppKit/SwiftUI desktop console that embeds Node and
+the production TypeScript engine, uses the repository logo as its `.icns` icon, manages the local `3838`
 service, and shows the ChatGPT-visible MCP tool catalog, browser bundle prompts,
 approved roots, editable policy, logs, connector tool calls, skill reads, write
 events, and cloud-download trace records without needing the browser console.
@@ -231,9 +236,9 @@ The native **Policy Center** edits the local policy safely:
 GitHub Releases provide prebuilt artifacts for local testing:
 
 - `ChatGPT2LocalBridge-macos-*.dmg`: drag-and-run macOS native control
-  console with the Rust companion binary bundled inside the app.
+  console with the production TypeScript engine bundled inside the app.
 - `ChatGPT2LocalBridge-macos-*.app.zip`: native macOS control console with the
-  Rust companion binary bundled inside the app.
+  same production engine bundled inside the app.
 - `ChatGPT2LocalBridge-windows-x64-rust-preview.zip`: Windows Rust-native local
   console preview.
 - `chatgpt2localbridge-*.tgz`: npm package for the full TypeScript OAuth MCP
@@ -294,13 +299,13 @@ Linux works the same way as Mac mini: run one bridge next to the files you want 
 One-click install directly on the Linux host:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Harzva/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | bash
 ```
 
 Common options:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Harzva/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | WORKSPACE_ROOT=/srv/workspace BRIDGE_PORT=3900 bash
+curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | WORKSPACE_ROOT=/srv/workspace BRIDGE_PORT=3900 bash
 ```
 
 The installer prints the exact ChatGPT Connector fields, local health checks,
@@ -374,8 +379,9 @@ Full guides:
 
 | Tier | Default use | Tools |
 | --- | --- | --- |
-| High-level agent workflow | Recommended entry point for Web ChatGPT once Codex Runner lands | `codex.task_start`, `codex.status`, `codex.result` |
-| Mid-level project workflow | Preferred today for reading context, checking policy, inspecting diffs, and running tests | `project.bundle`, `policy.read`, `git.diff`, `test.run` |
+| High-level repository workflow | Recommended entry point for Web ChatGPT analysis | `repo_open`, `repo_context`, `repo_scan`, `repo_coverage` |
+| High-level agent workflow | Explicit local execution through Codex Runner | `codex.task_start`, `codex.status`, `codex.result` |
+| Mid-level project workflow | Bounded context, policy, diffs, and tests | `project.bundle`, `policy.read`, `git.diff`, `test.run` |
 | Low-level debug primitives | Advanced local troubleshooting only; avoid as the Web ChatGPT path | `file.read_path`, `file.write`, `shell.exec` |
 
 The roadmap tracks the move from low-level primitives toward a safer Codex Runner surface. See [ROADMAP.md](./ROADMAP.md).
@@ -389,20 +395,21 @@ names and the earlier internal aliases:
 
 | Profile | Alias | Use |
 | --- | --- | --- |
-| `minimal` | `chatgpt-app` | Small ChatGPT connector surface with compatibility aliases. Raw shell execution is intentionally not exposed. |
-| `standard` | `normal` | Recommended default for project, policy, skills, git, tests, traces, and Codex task workflows. |
+| `readonly` | `readonly` | Recommended default for ChatGPT Pro: repository manifest, raw reads/search, CodeGraph context, symbols, coverage, and resumable scans. |
+| `minimal` | `chatgpt-app` | Legacy compatibility aliases, including bounded write workflows. |
+| `standard` | `normal` | Project, policy, skills, git, tests, traces, and Codex task workflows. |
 | `full` | `debug` | Trusted local debugging with low-level file, process, shell, and service tools exposed. |
 | `codex-runner-only` | `codex-runner-only` | High-level Codex task control plane without general project tools. |
 
 Set it with:
 
 ```bash
-LOCALBRIDGE_TOOL_PROFILE=standard
+LOCALBRIDGE_TOOL_PROFILE=readonly
 ```
 
-Use `minimal` for the first public connector test, `standard` for daily work,
-and `full` only for focused local debugging where you want every raw primitive
-visible.
+Use `readonly` for repository analysis through a public Connector. Enable
+`standard` or `full` only when the local service is intentionally allowed to
+modify or execute code.
 
 `shell_exec` is **not supported in the Web ChatGPT connector profile**. Hosted
 ChatGPT safety checks can block shell-like actions before they ever reach your
@@ -419,6 +426,7 @@ then let the local app and trace records explain what happened.
 
 | Area | Examples |
 | --- | --- |
+| Repository | `repo_open`, `repo_map`, `repo_read`, `repo_search`, `repo_symbols`, `repo_context`, `repo_compare`, `repo_coverage`, `repo_scan` |
 | Project | `project.snapshot`, `project.bundle`, `project.index`, `project.scripts` |
 | Handoff | `handoff.create` |
 | Policy | `policy.read`, `policy.validate` |
@@ -461,6 +469,32 @@ referenced local files such as `references/*.md`.
 
 Do not approve the whole `~/.codex` directory. It can contain sessions,
 attachments, local configuration, and other private runtime files.
+
+## Large Repositories And Multiple Branches
+
+Do not upload a large repository in one MCP response. Use the persistent
+repository workflow:
+
+1. `repo_open` creates a snapshot for the current worktree and branch. Every
+   Git-tracked path receives an explicit `indexed`, `denied`, `binary`,
+   `symlink`, `missing`, or `failed` status.
+2. `repo_map` pages through the full manifest with snapshot-bound cursors.
+3. `repo_symbols` indexes TypeScript, JavaScript, and Python variables,
+   parameters, properties, definitions, and references. Unsupported languages
+   and parse failures remain visible in coverage.
+4. `repo_context` combines raw search, the symbol index, and CodeGraph when its
+   branch/worktree index is current. CodeGraph is never used as proof that all
+   files were covered.
+5. `repo_scan` returns bounded chunks. After reading a batch, call `ack` with
+   the delivered chunk IDs and optional per-chunk summaries. Only acknowledged
+   chunks count toward completion.
+6. `repo_coverage` is the completion gate. It separately reports indexed,
+   delivered, acknowledged, summarized, and failed chunks.
+
+Use one stable Git worktree per active branch. Each snapshot records the real
+path, branch, commit, dirty state, file hashes, and chunk hashes, so cursors and
+scan state cannot silently cross branches. See
+[Large repository workflow](./docs/large-repositories.md).
 
 ## Codex Provider Profiles
 
@@ -542,6 +576,10 @@ block large execution records or structured payloads.
 
 ## Security Defaults
 
+- Missing or invalid policy files stop startup; there is no home-directory fallback.
+- The default tool profile and OAuth scope are `readonly` / `workspace:read`.
+- The HTTP server binds only to `127.0.0.1`; a tunnel is the explicit public boundary.
+- Canonical-path checks reject traversal and symlink escapes, and deny globs apply to reads, listings, searches, manifests, and scans.
 - Do not run unauthenticated on a public URL.
 - Keep `allowedProjectRoots` narrow.
 - Keep `skillRoots` narrow; prefer `~/.codex/skills`, not `~/.codex`.

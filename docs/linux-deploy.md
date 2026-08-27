@@ -7,18 +7,18 @@ Linux deployment is the same product pattern as Mac mini deployment: run the bri
 Fast path:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Harzva/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | bash
 ```
 
 With a narrow workspace root and first port:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Harzva/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | WORKSPACE_ROOT=/srv/workspace BRIDGE_PORT=3900 bash
+curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | WORKSPACE_ROOT=/srv/workspace BRIDGE_PORT=3900 bash
 ```
 
 The installer:
 
-- clones or fast-forwards `https://github.com/Harzva/chatgpt2localbridge`
+- clones or fast-forwards `https://github.com/ZhWang1104/chatgpt2localbridge`
 - runs `npm install` and `npm run build`
 - initializes `bridge.policy.json` and `.env.local`
 - picks the next free port if the requested port is busy
@@ -30,8 +30,8 @@ The installer:
 Optional tunnel helpers:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Harzva/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | TUNNEL=cloudflare bash
-curl -fsSL https://raw.githubusercontent.com/Harzva/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | TUNNEL=ngrok NGROK_AUTHTOKEN=... NGROK_DOMAIN=my-bridge.ngrok-free.app bash
+curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | TUNNEL=cloudflare bash
+curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | TUNNEL=ngrok NGROK_AUTHTOKEN=... NGROK_DOMAIN=my-bridge.ngrok-free.app bash
 ```
 
 `TUNNEL=cloudflare` uses a Cloudflare Quick Tunnel when `cloudflared` is already installed. The generated `trycloudflare.com` URL is useful for smoke tests, but it can change after restart.
@@ -135,7 +135,7 @@ When the authorization page asks for an unlock code, enter the value from the Li
 Use this when asking a coding agent or terminal agent to set up the Linux host:
 
 ```text
-Install ChatGPT2LocalBridge from https://github.com/Harzva/chatgpt2localbridge on this Linux host.
+Install the enhanced ChatGPT2LocalBridge fork from https://github.com/ZhWang1104/chatgpt2localbridge on this Linux host.
 Keep secrets local. Do not print .env.local, OAuth tokens, ngrok authtokens,
 cookies, or unlock codes into chat.
 

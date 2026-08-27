@@ -30,7 +30,7 @@ const steps = [
     title: 'Step 1 - Initialize local policy',
     subtitle: 'Choose the folder ChatGPT is allowed to work with.',
     body: terminal([
-      '$ npx github:harzva/chatgpt2localbridge init --root ~/Projects',
+      '$ npx github:ZhWang1104/chatgpt2localbridge setup --root ~/Projects',
       'Wrote: bridge.policy.json',
       'Wrote: .env.local',
       'Next: set -a; source .env.local; set +a',
@@ -42,8 +42,8 @@ const steps = [
     subtitle: 'The bridge listens on loopback first.',
     body: terminal([
       '$ set -a; source .env.local; set +a',
-      '$ npx github:harzva/chatgpt2localbridge --http 3838',
-      '[bridge] ChatGPT2LocalBridge v0.1.0 starting',
+      '$ npx github:ZhWang1104/chatgpt2localbridge start',
+      '[bridge] ChatGPT2LocalBridge v0.1.1 starting',
       '[bridge] /mcp ready at http://localhost:3838/mcp',
     ]),
   },

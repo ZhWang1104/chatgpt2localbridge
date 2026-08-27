@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-https://github.com/Harzva/chatgpt2localbridge.git}"
+REPO_URL="${REPO_URL:-https://github.com/ZhWang1104/chatgpt2localbridge.git}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/chatgpt2localbridge}"
 WORKSPACE_ROOT="${WORKSPACE_ROOT:-$HOME/workspace}"
 BRIDGE_PORT="${BRIDGE_PORT:-3838}"

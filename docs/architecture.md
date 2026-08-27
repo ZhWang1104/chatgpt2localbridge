@@ -10,13 +10,19 @@ ChatGPT
   -> approved workspace roots
 ```
 
+The CLI, launchd service, and macOS app all run the same TypeScript engine on
+loopback. The app bundle includes Node and production dependencies.
+
 ## Components
 
-- MCP server: exposes file, code, shell, git, workspace, task, process, and bridge tools.
+- MCP server: defaults to the read-only `repo_*` repository workflow; broader
+  file, shell, task, and process tools require an explicit profile.
 - HTTP transport: exposes `/mcp` for hosted clients.
 - OAuth server: exposes discovery metadata, DCR, authorize, and token endpoints.
 - Policy: decides which local paths and shell operations are allowed.
 - Tunnel: optional public HTTPS route, commonly ngrok or a secure tunnel service.
+- Repository coverage: Git manifest, text chunks, AST symbols, optional
+  CodeGraph relationships, and persistent scan acknowledgements.
 
 ## Why OAuth
 

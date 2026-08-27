@@ -17,13 +17,13 @@
 
     <h2>1. Initialize local policy</h2>
     <p>Pick the workspace root ChatGPT is allowed to access. Start narrow, then expand later.</p>
-    <pre class="code"><code>npx github:harzva/chatgpt2localbridge init --root ~/Projects</code></pre>
+    <pre class="code"><code>npx github:ZhWang1104/chatgpt2localbridge init --root ~/Projects</code></pre>
     <div class="screens"><img src="./assets/screenshots/01-init.png" alt="Initialize local policy screenshot"></div>
 
     <h2>2. Run the local MCP server</h2>
     <p>Load the generated environment file and start the local HTTP transport.</p>
     <pre class="code"><code>set -a; source .env.local; set +a
-    npx github:harzva/chatgpt2localbridge --http 3838</code></pre>
+    npx github:ZhWang1104/chatgpt2localbridge --http 3838</code></pre>
     <div class="screens"><img src="./assets/screenshots/02-run.png" alt="Run local MCP server screenshot"></div>
 
     <h2>3. Review Policy Center</h2>

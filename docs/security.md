@@ -4,6 +4,14 @@ ChatGPT2LocalBridge is powerful because it lets a remote ChatGPT session call lo
 
 ## Boundaries
 
+- Startup fails when the policy is missing or malformed.
+- Filesystem authorization uses canonical paths, so a symlink inside an
+  approved root cannot escape to another directory.
+- Deny globs are enforced for direct reads, directory listings, searches,
+  repository manifests, symbol indexes, and scans.
+- The default Connector surface is `readonly` with OAuth scope
+  `workspace:read`; write, shell, and Codex execution require an explicit
+  broader profile.
 - File access is limited by `allowedProjectRoots`.
 - Deny globs block common secret files.
 - Shell commands are filtered by deny patterns.

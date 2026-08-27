@@ -4,14 +4,16 @@
 
 ```bash
 npm run build
-LOCALBRIDGE_POLICY_PATH="$PWD/bridge.policy.json" node dist/index.js --http 3838
+node dist/index.js setup --root ~/Projects
+node dist/index.js doctor
+node dist/index.js start
 ```
 
 ## Install As A Mac LaunchAgent
 
 ```bash
-node dist/index.js init --root ~/Projects
-scripts/install-launchd.sh
+node dist/index.js setup --root ~/Projects
+node dist/index.js install-service
 ```
 
 If port 3838 is already used, change `LOCALBRIDGE_PORT` and
@@ -20,8 +22,19 @@ If port 3838 is already used, change `LOCALBRIDGE_PORT` and
 Stop it with:
 
 ```bash
-scripts/stop-launchd.sh
+node dist/index.js stop
+node dist/index.js restart
 ```
+
+Install a fixed Cloudflare named tunnel after `cloudflared tunnel login`:
+
+```bash
+node dist/index.js install-tunnel --hostname bridge.example.com
+node dist/index.js restart
+```
+
+The generated service and tunnel configuration live under
+`~/.chatgpt2localbridge`; both launchd jobs start after login.
 
 ## Health
 

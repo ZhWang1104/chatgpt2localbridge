@@ -12,10 +12,13 @@ Objective: make Web ChatGPT feel like it can safely operate an approved local wo
 
 ## Current Baseline
 
-- The bridge already exposes local file, project, policy, shell, and activity tools through MCP.
-- Web ChatGPT can call the connector and record tool activity.
-- The current rough edge is tool selection: ChatGPT can overuse `shell.exec`, `file.write`, and many small low-level calls when a single higher-level task tool would be safer.
-- The product needs a cleaner split between debug primitives, workflow tools, and Codex-powered agent tools.
+- The TypeScript OAuth/MCP server is the canonical CLI, launchd, and macOS app engine.
+- Startup is fail-closed, filesystem checks use canonical paths, and the default public profile is read-only.
+- `repo_*` tools provide Git-complete manifests, paged maps, large-file chunks,
+  TS/JS/Python symbols, optional CodeGraph context, branch comparison, coverage,
+  and resumable acknowledged scans.
+- Low-level write, shell, process, and Codex Runner tools remain available only
+  through explicitly broader profiles.
 
 ## Current Evidence
 
