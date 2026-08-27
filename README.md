@@ -1,3 +1,7 @@
+<p align="center">
+  <strong>English</strong> · <a href="./README.zh-CN.md">简体中文</a>
+</p>
+
 <div align="center">
   <img src="./docs/assets/logo.png" alt="ChatGPT2LocalBridge logo" width="160" />
   <h1>ChatGPT2LocalBridge</h1>
