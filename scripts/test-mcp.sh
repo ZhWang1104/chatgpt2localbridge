@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 NODE_BIN="$(command -v node)"
+export LOCALBRIDGE_TOOL_PROFILE=normal
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 mkdir -p "$TMPDIR/workspace" "$TMPDIR/cloud"
@@ -75,6 +76,28 @@ for (const name of ["shell.exec", "process.start", "file.write", "file.delete", 
   if (tools.includes(name)) throw new Error(`normal profile exposed low-level tool: ${name}`);
 }
 console.log(`[test] normal tools ok (${tools.length})`);
+'
+
+echo "[test] stdio tools/list readonly profile"
+readonly_response="$(
+  printf '%s\n' \
+    '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"readonly-smoke","version":"0.1.0"}}}' \
+    '{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}' \
+    '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
+  | LOCALBRIDGE_TOOL_PROFILE=readonly LOCALBRIDGE_DATA_DIR="$TMPDIR/readonly-data" LOCALBRIDGE_LOG_DIR="$TMPDIR/readonly-logs" LOCALBRIDGE_POLICY_PATH="$TMPDIR/bridge.policy.json" node dist/index.js 2>/dev/null
+)"
+
+printf '%s\n' "$readonly_response" | node -e '
+const fs = require("node:fs");
+const lines = fs.readFileSync(0, "utf8").trim().split(/\n+/).filter(Boolean).map(JSON.parse);
+const tools = lines.find((line) => line.id === 2)?.result?.tools?.map((tool) => tool.name) ?? [];
+for (const name of ["project.snapshot", "project.bundle", "code.read", "code.search", "file.read_path", "file.list", "git.status", "git.diff", "policy.read", "bridge.health", "repo_open", "repo_map", "repo_read", "repo_search", "repo_symbols", "repo_context", "repo_compare", "repo_coverage", "repo_scan"]) {
+  if (!tools.includes(name)) throw new Error(`readonly profile missing tool: ${name}`);
+}
+for (const name of ["file_write", "local_write_file", "local_workspace_action", "cloud.download", "test.run", "handoff.create", "codex.task_start", "codex_task_start", "shell.exec", "file.write", "file.patch", "file.delete", "process.start", "service.restart"]) {
+  if (tools.includes(name)) throw new Error(`readonly profile exposed mutating tool: ${name}`);
+}
+console.log(`[test] readonly tools ok (${tools.length})`);
 '
 
 echo "[test] stdio tools/list chatgpt-app profile"
@@ -700,6 +723,18 @@ if (status.service !== "chatgpt2localbridge" || !status.dashboardTokenConfigured
 }
 console.log("[test] dashboard ok");
 ' "$TMPDIR/dashboard-status.json"
+
+cors_status="$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS -H 'Origin: https://evil.example' "http://127.0.0.1:$PORT/mcp")"
+if [[ "$cors_status" != "403" ]]; then
+  echo "[test] expected unapproved CORS origin to return 403, got $cors_status" >&2
+  exit 1
+fi
+allowed_origin="$(curl -sSI -H 'Origin: https://chatgpt.com' "http://127.0.0.1:$PORT/health" | tr -d '\r' | awk -F': ' 'tolower($1) == "access-control-allow-origin" {print $2}')"
+if [[ "$allowed_origin" != "https://chatgpt.com" ]]; then
+  echo "[test] expected approved CORS origin echo, got: $allowed_origin" >&2
+  exit 1
+fi
+echo "[test] cors policy ok"
 
 kill "$pid" >/dev/null 2>&1 || true
 wait "$pid" 2>/dev/null || true

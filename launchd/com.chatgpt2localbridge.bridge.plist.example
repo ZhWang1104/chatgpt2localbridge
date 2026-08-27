@@ -31,6 +31,14 @@
     <string>REPLACE_WITH_LOCAL_DASHBOARD_TOKEN</string>
     <key>LOCALBRIDGE_ALLOW_URL_TOKEN</key>
     <string>0</string>
+    <key>LOCALBRIDGE_ALLOWED_ORIGINS</key>
+    <string>https://chatgpt.com</string>
+    <key>LOCALBRIDGE_OAUTH_SCOPES</key>
+    <string>workspace:read</string>
+    <key>LOCALBRIDGE_TOOL_PROFILE</key>
+    <string>readonly</string>
+    <key>LOCALBRIDGE_CODEGRAPH_BIN</key>
+    <string>/Users/YOUR_USERNAME/.local/bin/codegraph</string>
   </dict>
 
   <key>RunAtLoad</key>

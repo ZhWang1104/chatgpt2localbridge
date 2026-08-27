@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME="ChatGPT2LocalBridge"
 BUNDLE_ID="com.harzva.chatgpt2localbridge.rs"
-VERSION="0.1.0"
+VERSION="$(node -p "require('$ROOT_DIR/package.json').version")"
 MACOS_ARCH="${MACOS_ARCH:-$(uname -m)}"
 SWIFT_TARGET="${MACOS_SWIFT_TARGET:-$MACOS_ARCH-apple-macosx14.0}"
 BUILD_DIR="$ROOT_DIR/build/macos"
@@ -16,8 +16,8 @@ ICONSET_DIR="$BUILD_DIR/$APP_NAME.iconset"
 MODULE_CACHE_DIR="$BUILD_DIR/module-cache"
 ICON_PNG="$ROOT_DIR/docs/assets/logo.png"
 ICON_ICNS="$RESOURCES_DIR/AppIcon.icns"
-RUST_MANIFEST="$ROOT_DIR/rust/chatgpt2localbridge-rs/Cargo.toml"
-RUST_BINARY="$ROOT_DIR/rust/chatgpt2localbridge-rs/target/release/chatgpt2localbridge-rs"
+NODE_BIN="$(command -v node)"
+BRIDGE_RESOURCE_DIR="$RESOURCES_DIR/bridge"
 SWIFT_SOURCE="$ROOT_DIR/macos/ChatGPT2LocalBridgeNative/ChatGPT2LocalBridgeApp.swift"
 INSTALL_APP=0
 
@@ -38,14 +38,14 @@ if [[ ! -f "$ICON_PNG" ]]; then
   exit 1
 fi
 
-command -v cargo >/dev/null
 command -v iconutil >/dev/null
 command -v sips >/dev/null
 command -v swiftc >/dev/null
 command -v node >/dev/null
+command -v npm >/dev/null
+command -v ditto >/dev/null
 
 npm run build >/dev/null
-cargo build --release --manifest-path "$RUST_MANIFEST"
 
 rm -rf "$APP_PATH" "$ICONSET_DIR"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$ICONSET_DIR" "$MODULE_CACHE_DIR"
@@ -64,8 +64,11 @@ if ! iconutil -c icns "$ICONSET_DIR" -o "$ICON_ICNS" 2>/dev/null; then
   sips -s format icns "$ICON_PNG" --out "$ICON_ICNS" >/dev/null
 fi
 
-cp "$RUST_BINARY" "$RESOURCES_DIR/chatgpt2localbridge-rs"
-chmod 755 "$RESOURCES_DIR/chatgpt2localbridge-rs"
+node "$ROOT_DIR/scripts/bundle-node-runtime.mjs" "$NODE_BIN" "$RESOURCES_DIR"
+mkdir -p "$BRIDGE_RESOURCE_DIR"
+ditto "$ROOT_DIR/dist" "$BRIDGE_RESOURCE_DIR/dist"
+cp "$ROOT_DIR/package.json" "$ROOT_DIR/package-lock.json" "$BRIDGE_RESOURCE_DIR/"
+npm ci --prefix "$BRIDGE_RESOURCE_DIR" --omit=dev --ignore-scripts >/dev/null
 node "$ROOT_DIR/scripts/export-mcp-tools.mjs" --out "$RESOURCES_DIR/mcp-tools.json" --quiet
 
 cat > "$CONTENTS_DIR/Info.plist" <<PLIST
@@ -116,7 +119,9 @@ chmod 755 "$MACOS_DIR/$APP_NAME"
 
 plutil -lint "$CONTENTS_DIR/Info.plist" >/dev/null
 xattr -cr "$APP_PATH" 2>/dev/null || true
-codesign --force --deep --sign - "$APP_PATH" >/dev/null
+find "$RESOURCES_DIR/lib" -type f -name '*.dylib' -exec codesign --force --sign - {} \; >/dev/null 2>&1
+codesign --force --sign - "$RESOURCES_DIR/node" >/dev/null 2>&1
+codesign --force --deep --sign - "$APP_PATH" >/dev/null 2>&1
 
 if [[ "$INSTALL_APP" == "1" ]]; then
   rm -rf "/Applications/$APP_NAME.app"

@@ -1596,7 +1596,7 @@ struct OAuthAuthorizeReplicaCard: View {
                 Text("Requested scope:")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(.secondary)
-                ForEach(["workspace:read", "workspace:write", "shell:exec"], id: \.self) { scope in
+                ForEach(["workspace:read"], id: \.self) { scope in
                     Text(scope)
                         .font(.system(size: 10, weight: .semibold, design: .monospaced))
                         .padding(.horizontal, 6)
@@ -4221,13 +4221,13 @@ final class BridgeModel: ObservableObject {
     @Published var policyAllowedRoots: [String] = []
     @Published var policySkillRoots: [String] = []
     @Published var policyDenyGlobsText = ""
-    @Published var policyShellEnabled = true
+    @Published var policyShellEnabled = false
     @Published var policyShellDenyText = ""
     @Published var policyErrors: [PolicyValidationMessage] = []
     @Published var policyDirty = false
     @Published var policyLastSaved = ""
-    @Published var toolProfile: ToolProfile = .normal
-    @Published var runtimeToolProfile: ToolProfile = .normal
+    @Published var toolProfile: ToolProfile = .readonly
+    @Published var runtimeToolProfile: ToolProfile = .readonly
     @Published var connectorMachines: [ConnectorMachineProfile] = []
     @Published var selectedConnectorMachineID = ""
     @Published var language: AppLanguage = .en
@@ -4242,7 +4242,7 @@ final class BridgeModel: ObservableObject {
     @Published var codexAnalyticsGroupBy = "day"
     @Published var codexAnalyticsGroup = "workspace"
 
-    let port = ProcessInfo.processInfo.environment["LOCALBRIDGE_PORT"] ?? "3842"
+    let port = ProcessInfo.processInfo.environment["LOCALBRIDGE_PORT"] ?? "3838"
     let connectorDataDir: URL
     let dataDir: URL
     let logDir: URL
@@ -4255,6 +4255,7 @@ final class BridgeModel: ObservableObject {
     let analyticsPath: URL
     let pidPath: URL
     let enginePath: String
+    let engineScriptPath: String
 
     private var timer: Timer?
     private var token = ""
@@ -4262,7 +4263,7 @@ final class BridgeModel: ObservableObject {
     init() {
         let home = FileManager.default.homeDirectoryForCurrentUser
         connectorDataDir = home.appendingPathComponent(".chatgpt2localbridge", isDirectory: true)
-        dataDir = home.appendingPathComponent(".chatgpt2localbridge-rs", isDirectory: true)
+        dataDir = connectorDataDir
         logDir = dataDir.appendingPathComponent("logs", isDirectory: true)
         policyPath = dataDir.appendingPathComponent("bridge.policy.json")
         tokenPath = dataDir.appendingPathComponent("dashboard-token")
@@ -4271,8 +4272,10 @@ final class BridgeModel: ObservableObject {
         machinesPath = dataDir.appendingPathComponent("machines.json")
         providerPath = dataDir.appendingPathComponent("codex-provider.json")
         analyticsPath = dataDir.appendingPathComponent("codex-analytics.json")
-        pidPath = dataDir.appendingPathComponent("bridge-rs.pid")
-        enginePath = Bundle.main.path(forResource: "chatgpt2localbridge-rs", ofType: nil) ?? ""
+        pidPath = dataDir.appendingPathComponent("bridge.pid")
+        enginePath = Bundle.main.path(forResource: "node", ofType: nil) ?? ""
+        engineScriptPath = Bundle.main.resourceURL?
+            .appendingPathComponent("bridge/dist/index.js").path ?? ""
     }
 
     func bootstrap() async {
@@ -4326,7 +4329,7 @@ final class BridgeModel: ObservableObject {
 
             let statusURL = URL(string: "http://127.0.0.1:\(port)/app/api/status")!
             status = try await fetchJSON(BridgeStatus.self, url: statusURL, authorized: true)
-            runtimeToolProfile = ToolProfile(runtimeValue: status?.toolProfile) ?? .normal
+            runtimeToolProfile = ToolProfile(runtimeValue: status?.toolProfile) ?? .readonly
 
             let activityURL = URL(string: "http://127.0.0.1:\(port)/app/api/activity?limit=40")!
             activity = try await fetchJSON(BridgeActivity.self, url: activityURL, authorized: true)
@@ -4794,7 +4797,7 @@ final class BridgeModel: ObservableObject {
             toolProfile = .normal
             return
         }
-        toolProfile = ToolProfile(runtimeValue: raw) ?? .normal
+        toolProfile = ToolProfile(runtimeValue: raw) ?? .readonly
     }
 
     private func persistToolProfile() {
@@ -5283,8 +5286,8 @@ final class BridgeModel: ObservableObject {
     }
 
     func startService() async {
-        guard !enginePath.isEmpty else {
-            lastError = "Bundled Rust engine is missing"
+        guard !enginePath.isEmpty, !engineScriptPath.isEmpty else {
+            lastError = "Bundled bridge engine is missing"
             return
         }
         if isOnline { return }
@@ -5299,7 +5302,7 @@ final class BridgeModel: ObservableObject {
 
             let process = Process()
             process.executableURL = URL(fileURLWithPath: enginePath)
-            process.arguments = ["--http", port]
+            process.arguments = [engineScriptPath, "--http", port]
             var environment = ProcessInfo.processInfo.environment
             environment["HOME"] = FileManager.default.homeDirectoryForCurrentUser.path
             environment["LOCALBRIDGE_PORT"] = port
@@ -5308,6 +5311,26 @@ final class BridgeModel: ObservableObject {
             environment["LOCALBRIDGE_POLICY_PATH"] = policyPath.path
             environment["LOCALBRIDGE_DASHBOARD_TOKEN"] = token
             environment["LOCALBRIDGE_OAUTH_ENABLED"] = ProcessInfo.processInfo.environment["LOCALBRIDGE_OAUTH_ENABLED"] ?? "0"
+            environment["LOCALBRIDGE_OAUTH_SCOPES"] = "workspace:read"
+            environment["LOCALBRIDGE_ALLOWED_ORIGINS"] = "https://chatgpt.com"
+            let publicBaseURL = firstNonEmpty([
+                ProcessInfo.processInfo.environment["LOCALBRIDGE_PUBLIC_BASE_URL"],
+                readLaunchAgentEnv("LOCALBRIDGE_PUBLIC_BASE_URL"),
+                readRepoEnvLocalValue("LOCALBRIDGE_PUBLIC_BASE_URL")
+            ])
+            if !publicBaseURL.isEmpty { environment["LOCALBRIDGE_PUBLIC_BASE_URL"] = publicBaseURL }
+            let unlockCode = firstNonEmpty([
+                ProcessInfo.processInfo.environment["LOCALBRIDGE_OAUTH_UNLOCK_CODE"],
+                readLaunchAgentEnv("LOCALBRIDGE_OAUTH_UNLOCK_CODE"),
+                readRepoEnvLocalValue("LOCALBRIDGE_OAUTH_UNLOCK_CODE")
+            ])
+            if !unlockCode.isEmpty { environment["LOCALBRIDGE_OAUTH_UNLOCK_CODE"] = unlockCode }
+            let codegraphBin = firstNonEmpty([
+                ProcessInfo.processInfo.environment["LOCALBRIDGE_CODEGRAPH_BIN"],
+                readLaunchAgentEnv("LOCALBRIDGE_CODEGRAPH_BIN"),
+                readRepoEnvLocalValue("LOCALBRIDGE_CODEGRAPH_BIN")
+            ])
+            if !codegraphBin.isEmpty { environment["LOCALBRIDGE_CODEGRAPH_BIN"] = codegraphBin }
             environment["LOCALBRIDGE_TOOL_PROFILE"] = toolProfile.runtimeValue
             environment["LOCALBRIDGE_CODEX_PROVIDER"] = codexProviderKind.runtimeValue
             environment["LOCALBRIDGE_CODEX_API_KEY_ENV"] = codexProviderAPIKeyEnv.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty ?? "OPENAI_API_KEY"
@@ -5326,8 +5349,8 @@ final class BridgeModel: ObservableObject {
             environment["PATH"] = environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
             process.environment = environment
 
-            let outURL = logDir.appendingPathComponent("bridge-rs.out.log")
-            let errURL = logDir.appendingPathComponent("bridge-rs.err.log")
+            let outURL = logDir.appendingPathComponent("bridge.out.log")
+            let errURL = logDir.appendingPathComponent("bridge.err.log")
             FileManager.default.createFile(atPath: outURL.path, contents: nil)
             FileManager.default.createFile(atPath: errURL.path, contents: nil)
             process.standardOutput = try FileHandle(forWritingTo: outURL)
@@ -5692,7 +5715,7 @@ final class BridgeModel: ObservableObject {
         }
 
         if !FileManager.default.fileExists(atPath: toolProfilePath.path) {
-            try "\(ToolProfile.normal.runtimeValue)\n".write(to: toolProfilePath, atomically: true, encoding: .utf8)
+            try "\(ToolProfile.readonly.runtimeValue)\n".write(to: toolProfilePath, atomically: true, encoding: .utf8)
             try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: toolProfilePath.path)
         }
 
@@ -5727,7 +5750,7 @@ final class BridgeModel: ObservableObject {
                 "**/id_ed25519"
               ],
               "shell": {
-                "enabled": true,
+                "enabled": false,
                 "denyPatterns": [
                   "sudo",
                   "rm\\\\s+-rf\\\\s+/",
@@ -5791,7 +5814,7 @@ final class BridgeModel: ObservableObject {
                 "**/id_ed25519"
             ],
             shell: ShellPolicyDocument(
-                enabled: true,
+                enabled: false,
                 denyPatterns: [
                     "sudo",
                     "rm\\\\s+-rf\\\\s+/",
@@ -6056,6 +6079,7 @@ struct PolicyDiffRow: Identifiable {
 }
 
 enum ToolProfile: String, CaseIterable, Identifiable {
+    case readonly
     case normal
     case debug
     case codexRunner
@@ -6065,7 +6089,9 @@ enum ToolProfile: String, CaseIterable, Identifiable {
     init?(runtimeValue: String?) {
         let normalized = (runtimeValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         switch normalized {
-        case "normal", "":
+        case "readonly", "read-only", "":
+            self = .readonly
+        case "normal":
             self = .normal
         case "debug", "all":
             self = .debug
@@ -6078,6 +6104,7 @@ enum ToolProfile: String, CaseIterable, Identifiable {
 
     var runtimeValue: String {
         switch self {
+        case .readonly: return "readonly"
         case .normal: return "normal"
         case .debug: return "debug"
         case .codexRunner: return "codex-runner-only"
@@ -6086,6 +6113,7 @@ enum ToolProfile: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .readonly: return "Read Only"
         case .normal: return "Normal Mode"
         case .debug: return "Debug Mode"
         case .codexRunner: return "Codex Runner Only"
@@ -6094,6 +6122,8 @@ enum ToolProfile: String, CaseIterable, Identifiable {
 
     var note: String {
         switch self {
+        case .readonly:
+            return "Expose repository inspection tools only. Writes, shell commands, and Codex execution remain unavailable."
         case .normal:
             return "Prefer codex.*, project.bundle, git.diff, and test.run. Avoid raw shell and low-level writes."
         case .debug:
@@ -6105,6 +6135,7 @@ enum ToolProfile: String, CaseIterable, Identifiable {
 
     var riskLabel: String {
         switch self {
+        case .readonly: return "read-only"
         case .normal: return "low-level blocked"
         case .debug: return "all tools exposed"
         case .codexRunner: return "runner-only"
@@ -6113,6 +6144,7 @@ enum ToolProfile: String, CaseIterable, Identifiable {
 
     var riskTint: Color {
         switch self {
+        case .readonly: return .green
         case .normal: return .green
         case .debug: return .orange
         case .codexRunner: return .purple
@@ -6324,6 +6356,19 @@ struct ToolCatalogItem: Decodable, Identifiable {
 
     func exposure(in profile: ToolProfile) -> ToolExposure {
         switch profile {
+        case .readonly:
+            let allowed = isAlwaysSafeTool
+                || name.hasPrefix("project.")
+                || name.hasPrefix("code.")
+                || name == "file.list"
+                || name == "file.read_path"
+                || name.hasPrefix("git.")
+            return ToolExposure(
+                isEnabled: allowed,
+                stateLabel: allowed ? "Enabled" : "Hidden",
+                recommendation: allowed ? "Read only" : "Blocked",
+                tint: allowed ? .green : .red
+            )
         case .debug:
             return ToolExposure(
                 isEnabled: true,

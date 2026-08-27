@@ -29,13 +29,17 @@ export async function startHttpServer(
   const { config } = deps;
 
   const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
-    // CORS for MCP HTTP clients and local tunnel health checks.
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Mcp-Session-Id, Authorization, X-LocalBridge-Token');
+    const origin = toHeaderValue(req.headers.origin);
+    const originAllowed = !origin || isAllowedOrigin(origin, config);
+    if (origin && originAllowed) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Mcp-Session-Id, Authorization, X-LocalBridge-Token');
+    }
 
     if (req.method === 'OPTIONS') {
-      res.writeHead(204);
+      res.writeHead(originAllowed ? 204 : 403);
       res.end();
       return;
     }
@@ -88,8 +92,8 @@ export async function startHttpServer(
     sendJson(res, 404, { error: 'Not found', endpoints: ['/health', '/mcp'] });
   });
 
-  httpServer.listen(port, () => {
-    console.error(`[bridge] HTTP server on http://localhost:${port}`);
+  httpServer.listen(port, '127.0.0.1', () => {
+    console.error(`[bridge] HTTP server on http://127.0.0.1:${port}`);
     console.error(`[bridge]   /health      — status check`);
     console.error(`[bridge]   /mcp         — MCP Streamable HTTP`);
   });
@@ -100,6 +104,17 @@ export async function startHttpServer(
   };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
+}
+
+function isAllowedOrigin(rawOrigin: string, config: BridgeConfig): boolean {
+  const origin = rawOrigin.replace(/\/$/, '');
+  if (config.http.allowedOrigins.includes(origin)) return true;
+  try {
+    const url = new URL(origin);
+    return url.protocol === 'http:' && (url.hostname === '127.0.0.1' || url.hostname === 'localhost' || url.hostname === '::1');
+  } catch {
+    return false;
+  }
 }
 
 function toHeaderValue(value: string | string[] | undefined): string | undefined {

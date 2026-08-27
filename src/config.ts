@@ -12,7 +12,7 @@ export interface BridgePolicy {
   };
 }
 
-export type BridgeToolProfile = 'normal' | 'debug' | 'codex-runner-only' | 'chatgpt-app';
+export type BridgeToolProfile = 'normal' | 'debug' | 'codex-runner-only' | 'chatgpt-app' | 'readonly';
 
 export interface BridgeConfig {
   /** Where to store run data on disk */
@@ -23,6 +23,10 @@ export interface BridgeConfig {
   authToken?: string;
   /** Allow MCP URL query token auth for clients that cannot send headers */
   allowUrlTokenAuth: boolean;
+  /** Browser origins allowed to make credentialed HTTP requests. */
+  http: {
+    allowedOrigins: string[];
+  };
   /** OAuth settings for hosted MCP clients such as ChatGPT connectors */
   oauth: {
     enabled: boolean;
@@ -57,15 +61,21 @@ export interface CodexProviderConfig {
 }
 
 export function loadConfig(): BridgeConfig {
-  const dataDir = env('DATA_DIR')
+  const bootstrapDataDir = env('DATA_DIR')
     ?? path.join(os.homedir(), '.chatgpt2localbridge');
+  loadLocalEnv(env('CONFIG_ENV') ?? path.join(bootstrapDataDir, '.env.local'));
+  const dataDir = env('DATA_DIR') ?? bootstrapDataDir;
   const logDir = env('LOG_DIR')
     ?? path.join(dataDir, 'logs');
   const authToken = env('AUTH_TOKEN') || undefined;
   const allowUrlTokenAuth = env('ALLOW_URL_TOKEN') === '1'
     || env('ALLOW_URL_TOKEN') === 'true';
+  const allowedOrigins = (env('ALLOWED_ORIGINS') ?? 'https://chatgpt.com')
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/$/, ''))
+    .filter(Boolean);
   const oauthScopes = (env('OAUTH_SCOPES')
-    ?? 'workspace:read workspace:write shell:exec')
+    ?? 'workspace:read')
     .split(/\s+/)
     .map((scope) => scope.trim())
     .filter(Boolean);
@@ -76,12 +86,12 @@ export function loadConfig(): BridgeConfig {
     unlockCode: env('OAUTH_UNLOCK_CODE') || undefined,
     tokenTtlSeconds: parsePositiveInt(env('OAUTH_TOKEN_TTL_SECONDS'), 7 * 24 * 60 * 60),
     codeTtlSeconds: parsePositiveInt(env('OAUTH_CODE_TTL_SECONDS'), 10 * 60),
-    scopes: oauthScopes.length > 0 ? oauthScopes : ['workspace:read', 'workspace:write', 'shell:exec'],
+    scopes: oauthScopes.length > 0 ? oauthScopes : ['workspace:read'],
   };
   const dashboard = {
     token: env('DASHBOARD_TOKEN') || undefined,
   };
-  const policyPath = resolvePolicyPath(env('POLICY_PATH'));
+  const policyPath = resolvePolicyPath(env('POLICY_PATH'), dataDir);
   const policy = loadPolicy(policyPath);
   const toolProfile = parseToolProfile(env('TOOL_PROFILE'));
   const codexProvider = loadCodexProvider();
@@ -91,6 +101,7 @@ export function loadConfig(): BridgeConfig {
     logDir,
     authToken,
     allowUrlTokenAuth,
+    http: { allowedOrigins },
     oauth,
     dashboard,
     policyPath,
@@ -111,8 +122,11 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
 }
 
 function parseToolProfile(value: string | undefined): BridgeToolProfile {
-  const normalized = (value ?? 'normal').trim().toLowerCase();
+  const normalized = (value ?? 'readonly').trim().toLowerCase();
   switch (normalized) {
+    case 'read-only':
+    case 'readonly':
+      return 'readonly';
     case 'full':
     case 'debug':
     case 'all':
@@ -162,14 +176,36 @@ function expandHome(value: string): string {
     : value;
 }
 
-function resolvePolicyPath(policyPath?: string): string {
-  return policyPath ? path.resolve(expandHome(policyPath)) : path.resolve(process.cwd(), 'bridge.policy.json');
+function resolvePolicyPath(policyPath: string | undefined, dataDir: string): string {
+  return policyPath ? path.resolve(expandHome(policyPath)) : path.join(dataDir, 'bridge.policy.json');
+}
+
+function loadLocalEnv(filePath: string): void {
+  if (!fs.existsSync(filePath)) return;
+  const content = fs.readFileSync(filePath, 'utf8');
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const assignment = line.startsWith('export ') ? line.slice(7).trim() : line;
+    const separator = assignment.indexOf('=');
+    if (separator <= 0) continue;
+    const key = assignment.slice(0, separator).trim();
+    if (!/^LOCALBRIDGE_[A-Z0-9_]+$/.test(key) || process.env[key] !== undefined) continue;
+    let value = assignment.slice(separator + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    process.env[key] = value;
+  }
 }
 
 function loadPolicy(policyPath: string): BridgePolicy {
+  if (!fs.existsSync(policyPath)) {
+    throw new Error(`Policy file does not exist: ${policyPath}. Run \`chatgpt2localbridge setup --root <workspace>\` first.`);
+  }
+
   const defaultSkillRoot = path.join(os.homedir(), '.codex', 'skills');
-  const defaults: BridgePolicy = {
-    allowedProjectRoots: [os.homedir()],
+  const safeDefaults = {
     skillRoots: fs.existsSync(defaultSkillRoot) ? [defaultSkillRoot] : [],
     denyGlobs: [
       '**/.env',
@@ -185,7 +221,7 @@ function loadPolicy(policyPath: string): BridgePolicy {
       '**/id_ed25519',
     ],
     shell: {
-      enabled: true,
+      enabled: false,
       denyPatterns: [
         'sudo',
         'rm\\s+-rf\\s+/',
@@ -195,23 +231,43 @@ function loadPolicy(policyPath: string): BridgePolicy {
         'launchctl\\s+bootout\\s+system',
       ],
     },
-  };
-
-  if (!fs.existsSync(policyPath)) return defaults;
+  } satisfies Omit<BridgePolicy, 'allowedProjectRoots'>;
 
   try {
     const raw = JSON.parse(fs.readFileSync(policyPath, 'utf-8')) as Partial<BridgePolicy>;
+    if (!Array.isArray(raw.allowedProjectRoots) || raw.allowedProjectRoots.length === 0) {
+      throw new Error('allowedProjectRoots must contain at least one workspace root');
+    }
+    if (raw.allowedProjectRoots.some((entry) => typeof entry !== 'string' || !entry.trim())) {
+      throw new Error('allowedProjectRoots must only contain non-empty strings');
+    }
+    const skillRoots = readStringArray('skillRoots', raw.skillRoots, safeDefaults.skillRoots);
+    const denyGlobs = readStringArray('denyGlobs', raw.denyGlobs, safeDefaults.denyGlobs);
+    const shellEnabled = (raw.shell as { enabled?: unknown } | undefined)?.enabled;
+    if (shellEnabled !== undefined && typeof shellEnabled !== 'boolean') {
+      throw new Error('shell.enabled must be a boolean');
+    }
+    const denyPatterns = readStringArray('shell.denyPatterns', raw.shell?.denyPatterns, safeDefaults.shell.denyPatterns);
     return {
-      allowedProjectRoots: raw.allowedProjectRoots ?? defaults.allowedProjectRoots,
-      skillRoots: raw.skillRoots ?? defaults.skillRoots,
-      denyGlobs: raw.denyGlobs ?? defaults.denyGlobs,
+      allowedProjectRoots: raw.allowedProjectRoots.map((entry) => path.resolve(expandHome(entry))),
+      skillRoots,
+      denyGlobs,
       shell: {
-        enabled: raw.shell?.enabled ?? defaults.shell.enabled,
-        denyPatterns: raw.shell?.denyPatterns ?? defaults.shell.denyPatterns,
+        enabled: shellEnabled ?? safeDefaults.shell.enabled,
+        denyPatterns,
       },
     };
   } catch (err) {
-    console.error(`[bridge] Failed to load policy ${policyPath}:`, err);
-    return defaults;
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`Failed to load policy ${policyPath}: ${message}`);
   }
+}
+
+function readStringArray(name: string, value: unknown, fallback: string[]): string[] {
+  if (value === undefined) return fallback;
+  if (!Array.isArray(value)) throw new Error(`${name} must be an array`);
+  if (value.some((entry) => typeof entry !== 'string' || !entry.trim())) {
+    throw new Error(`${name} must only contain non-empty strings`);
+  }
+  return value as string[];
 }

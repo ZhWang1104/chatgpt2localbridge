@@ -5,8 +5,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LAUNCH_AGENTS="$HOME/Library/LaunchAgents"
 LABEL="com.chatgpt2localbridge.bridge"
 PLIST="$LAUNCH_AGENTS/$LABEL.plist"
-ENV_FILE="$ROOT/.env.local"
-POLICY_FILE="$ROOT/bridge.policy.json"
+CONFIG_DIR="${LOCALBRIDGE_CONFIG_DIR:-$HOME/.chatgpt2localbridge}"
+ENV_FILE="$CONFIG_DIR/.env.local"
+POLICY_FILE="$CONFIG_DIR/bridge.policy.json"
 NODE_BIN="$(command -v node)"
 
 escape_xml() {
@@ -22,7 +23,7 @@ escape_xml() {
 if [[ ! -f "$ENV_FILE" || ! -f "$POLICY_FILE" ]]; then
   echo "Missing .env.local or bridge.policy.json."
   echo "Run first:"
-  echo "  node dist/index.js init --root <approved-workspace-root>"
+  echo "  node dist/index.js setup --root <approved-workspace-root>"
   exit 1
 fi
 
@@ -43,7 +44,10 @@ PUBLIC_BASE_URL="${LOCALBRIDGE_PUBLIC_BASE_URL:-http://127.0.0.1:$PORT}"
 OAUTH_UNLOCK_CODE="${LOCALBRIDGE_OAUTH_UNLOCK_CODE:-}"
 DASHBOARD_TOKEN="${LOCALBRIDGE_DASHBOARD_TOKEN:-}"
 ALLOW_URL_TOKEN="${LOCALBRIDGE_ALLOW_URL_TOKEN:-0}"
-OAUTH_SCOPES="${LOCALBRIDGE_OAUTH_SCOPES:-workspace:read workspace:write shell:exec}"
+ALLOWED_ORIGINS="${LOCALBRIDGE_ALLOWED_ORIGINS:-https://chatgpt.com}"
+OAUTH_SCOPES="${LOCALBRIDGE_OAUTH_SCOPES:-workspace:read}"
+TOOL_PROFILE="${LOCALBRIDGE_TOOL_PROFILE:-readonly}"
+CODEGRAPH_BIN="${LOCALBRIDGE_CODEGRAPH_BIN:-}"
 
 mkdir -p "$DATA_DIR" "$LOG_DIR" "$LAUNCH_AGENTS"
 
@@ -58,7 +62,10 @@ PUBLIC_BASE_URL_XML="$(escape_xml "$PUBLIC_BASE_URL")"
 OAUTH_UNLOCK_CODE_XML="$(escape_xml "$OAUTH_UNLOCK_CODE")"
 DASHBOARD_TOKEN_XML="$(escape_xml "$DASHBOARD_TOKEN")"
 ALLOW_URL_TOKEN_XML="$(escape_xml "$ALLOW_URL_TOKEN")"
+ALLOWED_ORIGINS_XML="$(escape_xml "$ALLOWED_ORIGINS")"
 OAUTH_SCOPES_XML="$(escape_xml "$OAUTH_SCOPES")"
+TOOL_PROFILE_XML="$(escape_xml "$TOOL_PROFILE")"
+CODEGRAPH_BIN_XML="$(escape_xml "$CODEGRAPH_BIN")"
 
 cat > "$PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -100,8 +107,14 @@ cat > "$PLIST" <<PLIST
     <string>$DASHBOARD_TOKEN_XML</string>
     <key>LOCALBRIDGE_ALLOW_URL_TOKEN</key>
     <string>$ALLOW_URL_TOKEN_XML</string>
+    <key>LOCALBRIDGE_ALLOWED_ORIGINS</key>
+    <string>$ALLOWED_ORIGINS_XML</string>
     <key>LOCALBRIDGE_OAUTH_SCOPES</key>
     <string>$OAUTH_SCOPES_XML</string>
+    <key>LOCALBRIDGE_TOOL_PROFILE</key>
+    <string>$TOOL_PROFILE_XML</string>
+    <key>LOCALBRIDGE_CODEGRAPH_BIN</key>
+    <string>$CODEGRAPH_BIN_XML</string>
   </dict>
 
   <key>RunAtLoad</key>

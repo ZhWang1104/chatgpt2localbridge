@@ -13,7 +13,7 @@
     "start": "node dist/index.js",
     "start:http": "node dist/index.js --http 3838",
     "typecheck": "tsc --noEmit",
-    "test": "bash scripts/test-mcp.sh",
+    "test": "bash scripts/test-mcp.sh && node scripts/test-security.mjs && node scripts/test-cli.mjs && node scripts/test-repo-index.mjs",
     "tools:catalog": "npm run build >/dev/null && node scripts/export-mcp-tools.mjs",
     "docs:assets": "node scripts/render-doc-assets.mjs",
     "docs:preview": "python3 -m http.server 4178 --directory docs --bind 127.0.0.1",
@@ -42,9 +42,11 @@
     "rust/chatgpt2localbridge-rs/README.md",
     "rust/chatgpt2localbridge-rs/src",
     "scripts/build-macos-app.sh",
+    "scripts/bundle-node-runtime.mjs",
     "scripts/deploy-linux-bridge.sh",
     "scripts/export-mcp-tools.mjs",
     "scripts/install-launchd.sh",
+    "scripts/install-cloudflare-tunnel.sh",
     "scripts/linux-one-click-install.sh",
     "scripts/mac-screenshot.sh",
     "scripts/render-doc-assets.mjs",
@@ -73,12 +75,12 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "typescript": "5.7",
     "zod": "^3.23.0"
   },
   "devDependencies": {
     "@types/node": "^22.19.21",
-    "tsx": "4.19",
-    "typescript": "5.7"
+    "tsx": "4.19"
   },
   "engines": {
     "node": ">=20.0.0"

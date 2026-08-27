@@ -18,6 +18,8 @@ import {
   summarizeToolResult,
 } from './activity.js';
 import { getRequestContext, type SafeRequestContext } from './requestContext.js';
+import { WorkspaceFs, matchesPolicyGlob } from './workspaceFs.js';
+import { registerRepoTools } from './repoTools.js';
 
 const execAsync = promisify(exec);
 
@@ -41,6 +43,7 @@ const BRIDGE_LOG_FILES = [
 const SERVICE_RESTART_LABELS = ['bridge', 'ngrok'] as const;
 
 let activeConfig: BridgeConfig | undefined;
+let activeWorkspaceFs: WorkspaceFs | undefined;
 let activeTraceTaskIdCache: string | undefined;
 
 interface TraceSessionRecord {
@@ -446,6 +449,7 @@ const policyShape = {
 
 export function createMcpServer(config: BridgeConfig): McpServer {
   activeConfig = config;
+  activeWorkspaceFs = new WorkspaceFs(config.policy);
   const defaultPublicBaseUrl = config.oauth.publicBaseUrl
     ?? `http://127.0.0.1:${process.env.LOCALBRIDGE_PORT ?? '3838'}`;
   const server = new McpServer(
@@ -453,6 +457,7 @@ export function createMcpServer(config: BridgeConfig): McpServer {
     { capabilities: { tools: {} } },
   );
   installToolProfileGate(server, config);
+  registerRepoTools(server, config, (name, handler) => withToolLogging(name, handler));
 
   server.registerTool('project.snapshot', {
     title: 'Project Snapshot',
@@ -926,6 +931,10 @@ export function createMcpServer(config: BridgeConfig): McpServer {
   }, withToolLogging('code.search', async ({ projectPath, query, glob, maxResults }) => {
     const root = resolveProject(projectPath);
     const args = ['--line-number', '--no-heading', '--color', 'never'];
+    for (const deniedGlob of activeConfig?.policy.denyGlobs ?? []) {
+      args.push('-g', `!${deniedGlob}`);
+      if (deniedGlob.startsWith('**/')) args.push('-g', `!${deniedGlob.slice(3)}`);
+    }
     if (glob) args.push('-g', glob);
     args.push(query, '.');
 
@@ -935,7 +944,9 @@ export function createMcpServer(config: BridgeConfig): McpServer {
         encoding: 'utf-8',
         maxBuffer: 10 * 1024 * 1024,
       }).trim();
-      const matches = parseSearchOutput(output).slice(0, maxResults);
+      const matches = parseSearchOutput(output)
+        .filter((match) => !isPathDenied(root, path.resolve(root, match.file)))
+        .slice(0, maxResults);
       return searchResponse(query, matches);
     } catch (err) {
       const status = typeof err === 'object' && err !== null && 'status' in err ? (err as { status?: number }).status : undefined;
@@ -2624,6 +2635,45 @@ function installToolProfileGate(server: McpServer, config: BridgeConfig): void {
 function isToolAllowedForProfile(profile: BridgeConfig['toolProfile'], tool: string): boolean {
   if (profile === 'debug') return true;
 
+  if (profile === 'readonly') {
+    if (tool.startsWith('repo_')) return true;
+    return new Set([
+      'project.snapshot',
+      'project.bundle',
+      'project.scripts',
+      'code.read',
+      'code.read_range',
+      'code.search',
+      'file.read_path',
+      'file_read_path',
+      'file.list',
+      'file_list',
+      'file.stat',
+      'local_list_dir',
+      'local_read_file',
+      'local_bundle_dir',
+      'batch_read',
+      'policy.read',
+      'policy_read',
+      'policy.validate',
+      'skill.list',
+      'skill.search',
+      'skill.read',
+      'skill.bundle',
+      'skill.route',
+      'test.detect',
+      'git.status',
+      'git.diff',
+      'workspace.list',
+      'workspace.resolve',
+      'bridge.status',
+      'bridge.health',
+      'bridge_health',
+      'bridge.logs',
+      'bridge.activity',
+    ]).has(tool);
+  }
+
   if (profile === 'chatgpt-app') {
     return new Set([
       'bridge_health',
@@ -2706,50 +2756,25 @@ function summarizeArgs(args: unknown): string {
 }
 
 function resolveProject(projectPath: string): string {
-  const root = path.resolve(projectPath);
-  const stat = fs.statSync(root);
-  if (!stat.isDirectory()) throw new Error(`Project path is not a directory: ${projectPath}`);
-  assertAllowedProjectRoot(root);
-  return root;
+  if (!activeWorkspaceFs) throw new Error('Workspace filesystem is not initialized');
+  return activeWorkspaceFs.resolveProject(projectPath);
 }
 
 function resolveInsideProject(root: string, relPath: string): string {
-  if (path.isAbsolute(relPath)) throw new Error(`File path must be relative: ${relPath}`);
-  const fullPath = path.resolve(root, relPath);
-  const rootWithSep = root.endsWith(path.sep) ? root : `${root}${path.sep}`;
-  if (fullPath !== root && !fullPath.startsWith(rootWithSep)) {
-    throw new Error(`Path outside project directory: ${relPath}`);
-  }
-  assertNotDeniedPath(root, fullPath);
-  return fullPath;
+  if (!activeWorkspaceFs) throw new Error('Workspace filesystem is not initialized');
+  return fs.existsSync(path.resolve(root, relPath))
+    ? activeWorkspaceFs.resolveExisting(root, relPath)
+    : activeWorkspaceFs.resolveForWrite(root, relPath);
 }
 
 function assertAllowedProjectRoot(root: string) {
-  const policy = activeConfig?.policy;
-  if (!policy?.allowedProjectRoots.length) return;
-  const allowed = policy.allowedProjectRoots.map((entry) => path.resolve(expandHome(entry)));
-  const rootWithSep = root.endsWith(path.sep) ? root : `${root}${path.sep}`;
-  const ok = allowed.some((entry) => {
-    const allowedRoot = entry.endsWith(path.sep) ? entry : `${entry}${path.sep}`;
-    return root === entry || rootWithSep.startsWith(allowedRoot);
-  });
-  if (!ok) throw new Error(`Project path is outside allowed roots: ${root}`);
+  if (!activeWorkspaceFs) throw new Error('Workspace filesystem is not initialized');
+  activeWorkspaceFs.resolveProject(root);
 }
 
 function resolveAllowedRootForPath(fullPath: string): string {
-  const policy = activeConfig?.policy;
-  if (!policy?.allowedProjectRoots.length) {
-    const stat = fs.existsSync(fullPath) ? fs.statSync(fullPath) : undefined;
-    return stat?.isDirectory() ? fullPath : path.dirname(fullPath);
-  }
-
-  const allowed = policy.allowedProjectRoots
-    .map((entry) => path.resolve(expandHome(entry)))
-    .filter((entry) => pathIsInsideRoot(fullPath, entry))
-    .sort((a, b) => b.length - a.length);
-
-  if (!allowed.length) throw new Error(`Path is outside allowed roots: ${fullPath}`);
-  return allowed[0];
+  if (!activeWorkspaceFs) throw new Error('Workspace filesystem is not initialized');
+  return activeWorkspaceFs.resolveAbsolute(fullPath).root;
 }
 
 function pathIsInsideRoot(fullPath: string, root: string): boolean {
@@ -2761,25 +2786,22 @@ function assertNotDeniedPath(root: string, fullPath: string) {
   const rel = path.relative(root, fullPath) || '.';
   const normalized = rel.split(path.sep).join('/');
   for (const pattern of activeConfig?.policy.denyGlobs ?? []) {
-    if (matchesDenyGlob(normalized, pattern)) throw new Error(`Path is denied by policy: ${rel}`);
+    if (matchesPolicyGlob(normalized, pattern)) throw new Error(`Path is denied by policy: ${rel}`);
+  }
+}
+
+function isPathDenied(root: string, fullPath: string): boolean {
+  try {
+    assertNotDeniedPath(root, fullPath);
+    return false;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('denied by policy')) return true;
+    throw error;
   }
 }
 
 function matchesDenyGlob(filePath: string, glob: string): boolean {
-  const normalized = glob.split(path.sep).join('/');
-  if (normalized.startsWith('**/')) {
-    const suffix = normalized.slice(3);
-    if (suffix.endsWith('/**')) {
-      const dir = suffix.slice(0, -3);
-      return filePath === dir || filePath.includes(`/${dir}/`) || filePath.startsWith(`${dir}/`);
-    }
-    return filePath === suffix || filePath.endsWith(`/${suffix}`);
-  }
-  if (normalized.includes('*')) {
-    const regex = new RegExp(`^${normalized.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*')}$`);
-    return regex.test(filePath);
-  }
-  return filePath === normalized;
+  return matchesPolicyGlob(filePath, glob);
 }
 
 function expandHome(value: string): string {
@@ -2931,7 +2953,11 @@ function expandBatchReadFiles(
     const trimmed = glob.trim();
     if (!trimmed) continue;
     try {
-      const output = execFileSync('rg', ['--files', '-g', trimmed, '.'], {
+      const denyArgs = (activeConfig?.policy.denyGlobs ?? []).flatMap((pattern) => [
+        '-g', `!${pattern}`,
+        ...(pattern.startsWith('**/') ? ['-g', `!${pattern.slice(3)}`] : []),
+      ]);
+      const output = execFileSync('rg', ['--files', ...denyArgs, '-g', trimmed, '.'], {
         cwd: root,
         encoding: 'utf-8',
         maxBuffer: 10 * 1024 * 1024,
@@ -3889,36 +3915,9 @@ async function downloadToLocalFile(url: string, target: string, maxBytes: number
 }
 
 function listDirectory(root: string, target: string, recursive: boolean, maxEntries: number) {
-  const stat = fs.statSync(target);
-  if (!stat.isDirectory()) throw new Error(`Not a directory: ${path.relative(root, target) || '.'}`);
-
-  const items: Array<{ path: string; type: 'file' | 'directory' | 'other'; size: number; modifiedAt: string }> = [];
-  let truncated = false;
-
-  function walk(dir: string) {
-    if (truncated) return;
-    const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
-    for (const entry of entries) {
-      if (items.length >= maxEntries) {
-        truncated = true;
-        return;
-      }
-      const fullPath = path.join(dir, entry.name);
-      const relPath = path.relative(root, fullPath) || '.';
-      const entryStat = fs.statSync(fullPath);
-      const type = entry.isDirectory() ? 'directory' : entry.isFile() ? 'file' : 'other';
-      items.push({
-        path: relPath,
-        type,
-        size: entryStat.size,
-        modifiedAt: entryStat.mtime.toISOString(),
-      });
-      if (recursive && entry.isDirectory() && !SKIP_DIRS.has(entry.name)) walk(fullPath);
-    }
-  }
-
-  walk(target);
-  return { items, truncated };
+  if (!activeWorkspaceFs) throw new Error('Workspace filesystem is not initialized');
+  const relativeDirectory = path.relative(root, target) || '.';
+  return activeWorkspaceFs.list(root, relativeDirectory, { recursive, maxEntries });
 }
 
 function readPackageScripts(packageJsonPath: string) {
@@ -5111,6 +5110,7 @@ function buildFileTree(projectPath: string, maxDepth: number): { files: FileTree
 
       const fullPath = path.join(dir, entry.name);
       const relPath = path.relative(projectPath, fullPath);
+      if (isPathDenied(projectPath, fullPath)) continue;
 
       if (entry.isDirectory()) {
         walk(fullPath, depth + 1);

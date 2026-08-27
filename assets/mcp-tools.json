@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-06-26T08:46:34.488Z",
+  "generatedAt": "2026-08-27T07:08:45.937Z",
   "source": "MCP tools/list",
-  "count": 71,
+  "count": 80,
   "tools": [
     {
       "name": "batch_read",
@@ -1971,6 +1971,389 @@
       },
       "annotations": {
         "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "repo_compare",
+      "title": "Compare Repository Revisions",
+      "description": "Compare two Git revisions or branches without changing the worktree.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "snapshotId": {
+            "type": "string"
+          },
+          "base": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "head": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "maxBytes": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 500000,
+            "default": 120000
+          }
+        },
+        "required": [
+          "snapshotId",
+          "base",
+          "head"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "repo_context",
+      "title": "Build Repository Context",
+      "description": "Combine CodeGraph relationships when its index matches this worktree with raw source search that remains independently complete.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "snapshotId": {
+            "type": "string"
+          },
+          "task": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "maxNodes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 20
+          },
+          "maxSearchResults": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          }
+        },
+        "required": [
+          "snapshotId",
+          "task"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "repo_coverage",
+      "title": "Repository Coverage",
+      "description": "Report accounted files, indexed lines, chunk delivery, acknowledgements, failures, and completion.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "snapshotId": {
+            "type": "string"
+          },
+          "scanId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "snapshotId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "repo_map",
+      "title": "Repository Map",
+      "description": "Page through every accounted Git-tracked file in a repository snapshot. The cursor is bound to one immutable snapshot.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "snapshotId": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 200
+          }
+        },
+        "required": [
+          "snapshotId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "repo_open",
+      "title": "Open Repository Snapshot",
+      "description": "Build a complete Git-tracked file manifest and line/byte chunk index for one branch or worktree.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectPath": {
+            "type": "string"
+          },
+          "maxChunkLines": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000,
+            "default": 400
+          },
+          "maxChunkBytes": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 500000,
+            "default": 96000
+          },
+          "indexSymbols": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "projectPath"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "repo_read",
+      "title": "Read Repository Content",
+      "description": "Read an immutable indexed chunk or a bounded line range. Fails if the working tree changed after the snapshot.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "snapshotId": {
+            "type": "string"
+          },
+          "chunkId": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "startLine": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "maxLines": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000,
+            "default": 400
+          }
+        },
+        "required": [
+          "snapshotId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "repo_scan",
+      "title": "Persistent Repository Scan",
+      "description": "Start, continue, acknowledge, or inspect a resumable full-repository scan. Only acknowledged chunks count as read.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "start",
+              "next",
+              "ack",
+              "status"
+            ]
+          },
+          "snapshotId": {
+            "type": "string"
+          },
+          "scanId": {
+            "type": "string"
+          },
+          "chunkIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "default": []
+          },
+          "summaries": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 4000
+            },
+            "default": {}
+          },
+          "maxChunks": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20,
+            "default": 4
+          },
+          "maxBytes": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 1000000,
+            "default": 300000
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "repo_search",
+      "title": "Search Repository",
+      "description": "Search raw repository text while enforcing policy-denied paths. Results identify the current snapshot and exact lines.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "snapshotId": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "glob": {
+            "type": "string"
+          },
+          "maxResults": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "default": 100
+          }
+        },
+        "required": [
+          "snapshotId",
+          "query"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "repo_symbols",
+      "title": "Repository Symbols",
+      "description": "Build or search the AST symbol index for TypeScript, JavaScript, and Python variables, parameters, properties, definitions, and references.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "index",
+              "search",
+              "status"
+            ],
+            "default": "search"
+          },
+          "snapshotId": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "default": ""
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "definition",
+              "reference"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "variable",
+              "parameter",
+              "property",
+              "function",
+              "class",
+              "interface",
+              "type",
+              "import",
+              "identifier"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 200
+          }
+        },
+        "required": [
+          "snapshotId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
         "destructiveHint": false,
         "openWorldHint": false
       }
