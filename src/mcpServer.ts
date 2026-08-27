@@ -910,7 +910,7 @@ export function createMcpServer(config: BridgeConfig): McpServer {
 
   server.registerTool('code.search', {
     title: 'Search Code',
-    description: 'Search local project files with ripgrep-compatible output.',
+    description: 'Search local project files with ripgrep, or a bounded literal fallback when ripgrep is unavailable.',
     inputSchema: {
       projectPath: z.string(),
       query: z.string(),
@@ -949,8 +949,12 @@ export function createMcpServer(config: BridgeConfig): McpServer {
         .slice(0, maxResults);
       return searchResponse(query, matches);
     } catch (err) {
-      const status = typeof err === 'object' && err !== null && 'status' in err ? (err as { status?: number }).status : undefined;
+      const searchError = err as NodeJS.ErrnoException & { status?: number };
+      const status = typeof err === 'object' && err !== null && 'status' in err ? searchError.status : undefined;
       if (status === 1) return searchResponse(query, []);
+      if (searchError.code === 'ENOENT') {
+        return searchResponse(query, searchCodeFallback(root, query, glob, maxResults));
+      }
       return {
         content: [{ type: 'text' as const, text: `Search failed: ${err instanceof Error ? err.message : String(err)}` }],
         isError: true,
@@ -3840,6 +3844,30 @@ function searchResponse(query: string, matches: Array<{ file: string; line: numb
     }],
     structuredContent: { query, count: matches.length, files, matches },
   };
+}
+
+function searchCodeFallback(root: string, query: string, glob: string | undefined, maxResults: number) {
+  const notes: string[] = [];
+  const requestedGlob = glob
+    ? (glob.includes('/') ? glob : `**/${glob}`)
+    : '**/*';
+  const files = collectFilesByGlobFallback(root, requestedGlob, notes);
+  const matches: Array<{ file: string; line: number; text: string }> = [];
+
+  for (const file of files) {
+    if (matches.length >= maxResults) break;
+    const target = resolveInsideProject(root, file);
+    const stat = fs.statSync(target);
+    if (stat.size > MAX_FILE_BYTES || isBinaryFile(target)) continue;
+    const lines = fs.readFileSync(target, 'utf8').split(/\r?\n/);
+    for (let index = 0; index < lines.length; index++) {
+      if (!lines[index].includes(query)) continue;
+      matches.push({ file, line: index + 1, text: lines[index].trim() });
+      if (matches.length >= maxResults) break;
+    }
+  }
+
+  return matches;
 }
 
 function parseSearchOutput(output: string): Array<{ file: string; line: number; text: string }> {

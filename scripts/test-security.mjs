@@ -74,7 +74,7 @@ try {
   assert.equal(safeConfig.toolProfile, 'readonly');
   assert.deepEqual(safeConfig.oauth.scopes, ['workspace:read']);
 
-  const callTool = (name, args) => {
+  const callTool = (name, args, envOverrides = {}) => {
     const input = [
       JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'security-test', version: '0.1.0' } } }),
       JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }),
@@ -92,6 +92,7 @@ try {
         LOCALBRIDGE_LOG_DIR: path.join(tempDir, 'logs'),
         LOCALBRIDGE_PORT: '',
         LOCALBRIDGE_TOOL_PROFILE: 'readonly',
+        ...envOverrides,
       },
     });
     assert.equal(result.status, 0, result.stderr);
@@ -102,6 +103,14 @@ try {
   assert.ok(!listed.structuredContent.entries.some((entry) => entry.path === '.env'));
   const searched = callTool('code.search', { projectPath: workspace, query: 'should-not-leak', maxResults: 100 });
   assert.equal(searched.structuredContent.count, 0, 'search must not return denied file content');
+  const emptyBin = path.join(tempDir, 'empty-bin');
+  fs.mkdirSync(emptyBin);
+  const searchedWithoutRg = callTool(
+    'code.search',
+    { projectPath: workspace, query: 'visible', maxResults: 100 },
+    { PATH: emptyBin },
+  );
+  assert.equal(searchedWithoutRg.structuredContent.count, 1, 'search must use a safe built-in fallback when rg is unavailable');
 
   console.log('[test] fail-closed policy and workspace boundary ok');
 } finally {

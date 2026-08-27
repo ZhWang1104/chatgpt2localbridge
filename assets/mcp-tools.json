@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-27T07:08:45.937Z",
+  "generatedAt": "2026-08-27T07:35:59.587Z",
   "source": "MCP tools/list",
   "count": 80,
   "tools": [
@@ -324,7 +324,7 @@
     {
       "name": "code.search",
       "title": "Search Code",
-      "description": "Search local project files with ripgrep-compatible output.",
+      "description": "Search local project files with ripgrep, or a bounded literal fallback when ripgrep is unavailable.",
       "inputSchema": {
         "type": "object",
         "properties": {
