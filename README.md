@@ -1,642 +1,320 @@
 <div align="center">
-  <img src="./docs/assets/logo.png" alt="ChatGPT2LocalBridge logo" width="180" />
+  <img src="./docs/assets/logo.png" alt="ChatGPT2LocalBridge logo" width="160" />
   <h1>ChatGPT2LocalBridge</h1>
-  <p><strong>Codex / ChatGPT Plugin App for approved local workspaces.</strong></p>
+  <p><strong>Let ChatGPT and Codex inspect approved local repositories through a safe, auditable MCP bridge.</strong></p>
   <p>
-    <img alt="Codex Plugin App" src="https://img.shields.io/badge/Codex-Plugin%20App-7c3aed.svg" />
-    <img alt="ChatGPT Plugin App" src="https://img.shields.io/badge/ChatGPT-Plugin%20App-10a37f.svg" />
-    <img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg" />
+    <a href="https://github.com/ZhWang1104/chatgpt2localbridge/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ZhWang1104/chatgpt2localbridge/actions/workflows/ci.yml/badge.svg" /></a>
     <img alt="Node" src="https://img.shields.io/badge/node-%3E%3D20-339933.svg" />
-    <img alt="Rust" src="https://img.shields.io/badge/rust-native%20preview-b7410e.svg" />
     <img alt="MCP" src="https://img.shields.io/badge/MCP-Streamable%20HTTP-1769e0.svg" />
-    <img alt="Status" src="https://img.shields.io/badge/status-alpha-f59e0b.svg" />
-    <img alt="GitHub stars" src="https://img.shields.io/github/stars/Harzva/chatgpt2localbridge?style=social" />
+    <img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg" />
   </p>
   <p>
-    <a href="./docs/index.html">Pages source</a>
-    ·
-    <a href="./docs/showcase.html">Showcase</a>
-    ·
-    <a href="./docs/human-tutorial.html">Human tutorial</a>
-    ·
-    <a href="./docs/agent-computer-use.html">Agent tutorial</a>
-    ·
-    <a href="./docs/authentication-modes.md">Auth modes</a>
-    ·
-    <a href="./docs/linux-deploy.md">Linux deploy</a>
-    ·
-    <a href="./docs/alternatives.md">Alternatives</a>
-    ·
-    <a href="./docs/sync-flows.md">Sync flows</a>
-    ·
-    <a href="./docs/skill-runtime-roadmap.md">Skill runtime</a>
-    ·
-    <a href="./docs/handoff-spec.md">Handoff spec</a>
-    ·
-    <a href="./docs/codex-analytics.md">Codex analytics</a>
-    ·
-    <a href="./docs/evidence.md">Evidence</a>
-    ·
-    <a href="./docs/promo/xhs-note.md">Promo copy</a>
-    ·
-    <a href="./docs/promo/mobile-codex-runner.md">Mobile promo</a>
-    ·
-    <a href="./ROADMAP.md">Roadmap</a>
+    <a href="#quick-start">Quick start</a> ·
+    <a href="#large-repository-workflow">Large repositories</a> ·
+    <a href="./docs/security.md">Security</a> ·
+    <a href="./docs/operations.md">Operations</a>
   </p>
 </div>
 
-## Linux One-Click Prompt
+ChatGPT2LocalBridge is a self-hosted MCP server for approved local workspaces.
+It exposes bounded file, repository, Git, skill, task, and diagnostic tools to
+ChatGPT Custom Connectors and local MCP clients. The bridge runs on your
+machine; ChatGPT never mounts your disk directly and can only call tools allowed
+by the local policy.
 
-Repository: `https://github.com/ZhWang1104/chatgpt2localbridge`
+> [!IMPORTANT]
+> This enhanced fork is based on the original
+> [`Harzva/chatgpt2localbridge`](https://github.com/Harzva/chatgpt2localbridge)
+> project created by **Harzva**. The original authorship, Git history, project
+> name, and MIT license are retained. This fork adds repository-scale coverage,
+> resumable scans, AST symbols, CodeGraph-assisted context, fail-closed defaults,
+> and a unified TypeScript runtime for the CLI, launchd service, and macOS app.
 
-Copy this prompt to a Linux shell agent:
+## What This Fork Adds
 
-```text
-Install the enhanced ChatGPT2LocalBridge fork from https://github.com/ZhWang1104/chatgpt2localbridge on this Linux host.
-Use one command, keep secrets local, and do not print .env.local, OAuth tokens,
-ngrok authtokens, cookies, or unlock codes into chat.
+- A complete Git-tracked file manifest: every tracked path receives an explicit
+  `indexed`, `binary`, `denied`, `symlink`, `missing`, or `failed` status.
+- UTF-8-safe line and byte chunks for repositories too large for one model
+  context, including large files and very long individual lines.
+- Persistent, resumable scans where delivered chunks and acknowledged chunks
+  are tracked separately.
+- AST definition/reference indexing for TypeScript, JavaScript, and Python,
+  including variables, parameters, properties, functions, classes, and types.
+- Optional CodeGraph integration for dependency and relationship context.
+- Snapshot identities bound to canonical path, branch, commit, dirty state,
+  file hashes, and chunk hashes.
+- Safe defaults: readonly tools, `workspace:read`, loopback-only HTTP, disabled
+  shell, deny globs, and canonical-path checks that reject symlink escapes.
+- One configuration directory, CLI setup/diagnostics, launchd persistence, a
+  fixed Cloudflare Tunnel installer, and a portable macOS application bundle.
 
-Run:
-curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | bash
-
-After install, report the local health result, the ChatGPT Connector fields, and
-the tunnel choice. If ngrok is selected, ask me for NGROK_AUTHTOKEN and optional
-NGROK_DOMAIN. If Cloudflare is selected, explain quick tunnel vs named tunnel.
-```
-
-Or run it yourself:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | bash
-```
-
-The installer prints every Connector field you need to fill in ChatGPT, plus
-ngrok and Cloudflare registration links, tunnel tradeoffs, and an agent-safe
-setup prompt.
-
-![ChatGPT2LocalBridge cover](./docs/assets/cover.png)
-
-<!-- showcase:start -->
-<p align="center">
-  <img src="./docs/assets/thumbnail-responsive.png" alt="ChatGPT2LocalBridge responsive preview" width="900" />
-</p>
-<!-- showcase:end -->
-
-ChatGPT2LocalBridge is a self-hosted **Codex / ChatGPT Plugin App**: a local desktop/operator app plus an MCP connector that lets ChatGPT access approved local workspaces after authorization. It is designed for people who want ChatGPT or Codex-style agents to inspect, bundle, download, trace, or operate on local project files without uploading the whole workspace elsewhere.
-
-The TypeScript build is the single production OAuth/MCP engine used by the CLI,
-launchd service, and macOS app. A small Rust experiment remains in
-[`rust/chatgpt2localbridge-rs`](./rust/chatgpt2localbridge-rs), but it is not the
-runtime used by the macOS app or the supported Connector path.
-
-In this repository, **plugin app** means a small agent-facing product surface: a local app, a policy file, a tool catalog, trace records, and one or more ChatGPT/Codex-visible MCP tools. It is not a legacy ChatGPT plugin. It is best described as:
-
-- **Codex Plugin App**
-- **ChatGPT Plugin App**
-- **MCP Server**
-- **ChatGPT Custom Connector**
-- **OAuth Local Workspace Bridge**
-
-> Unofficial project. Not affiliated with OpenAI.
-
-## Upstream And Attribution
-
-This enhanced fork is based on the original
-[`Harzva/chatgpt2localbridge`](https://github.com/Harzva/chatgpt2localbridge)
-project created by **Harzva**. The original project name, authorship, repository
-history, and MIT license are retained. This fork adds the large-repository
-coverage, resumable scanning, AST symbol index, CodeGraph integration, safer
-defaults, unified TypeScript runtime, and macOS/launchd packaging described
-below.
-
-For the original implementation and upstream development, visit the
-[original repository](https://github.com/Harzva/chatgpt2localbridge). For the
-enhanced version documented here, use
-[`ZhWang1104/chatgpt2localbridge`](https://github.com/ZhWang1104/chatgpt2localbridge).
-
-## Build Your Own Plugin App
-
-This project is also an invitation to build more agent-facing plugin apps. A good plugin app should give ChatGPT or Codex a focused tool surface, keep risky operations behind policy, and give the human operator a clear local console.
-
-| Layer | What to build | Example in this repo |
-| --- | --- | --- |
-| Agent interface | MCP tools with concise names, schemas, and safe defaults | `project.bundle`, `policy.read`, `codex.task_start` |
-| Skill runtime | Local skills are discovered through approved roots, manifests, and stable registry tools | `skill.list`, `skill.route`, planned `skill.invoke` |
-| Human control | A local app that shows status, policy, traces, and cancel buttons | Native macOS console |
-| Safety policy | Approved roots, deny globs, auth mode, shell restrictions | `bridge.policy.json` |
-| Distribution | README, GitHub Pages, screenshots, setup prompts, install scripts | `docs/`, `npx github:...`, macOS app bundle |
-
-If you build your own plugin app, keep the default workflow narrow and readable: one clear problem, one safe tool surface, one local control panel, and one copyable ChatGPT test prompt.
-
-The next product direction is a **Local Skill OS**: local skills stay in approved
-skill roots, the bridge exposes a stable registry surface, and the app shows
-which skills are readable, routable, invokable, or blocked. See the
-[Skill Runtime Roadmap](./docs/skill-runtime-roadmap.md).
-
-The main execution path is moving toward **Handoff -> Codex Runner**: ChatGPT
-creates a structured handoff, the bridge validates and stores it, then local
-Codex CLI performs the project work. See the [Handoff Spec](./docs/handoff-spec.md).
-
-## Route
+## How It Works
 
 ```text
-ChatGPT
-  -> OAuth MCP Connector
-  -> HTTPS tunnel
-  -> http://127.0.0.1:3838/mcp
-  -> ChatGPT2LocalBridge
-  -> approved local workspace roots
+ChatGPT / local MCP client
+          │
+          │ MCP over HTTPS + OAuth
+          ▼
+ChatGPT2LocalBridge on 127.0.0.1:3838
+          │
+          ├─ bridge.policy.json       authorization boundary
+          ├─ Git manifest + chunks    completeness and raw source
+          ├─ AST symbol index         definitions and references
+          ├─ CodeGraph (optional)     relationships and impact context
+          └─ approved local files     source of truth
 ```
 
-ChatGPT does not directly mount your disk. It calls MCP tools, and every file operation is checked against `bridge.policy.json`.
+The TypeScript build is the supported production engine. The Rust directory is
+an experimental preview and is not used by the supported macOS or ChatGPT
+Connector path.
 
-## Architecture
+## Quick Start
 
-<p align="center">
-  <img src="./docs/assets/architecture-horizontal.png" alt="ChatGPT2LocalBridge horizontal architecture diagram" width="900" />
-</p>
+Requirements:
 
-The intended product shape is a control plane, not just a raw shell bridge:
-
-- **ChatGPT Web** makes structured MCP calls.
-- **Connector auth** should use OAuth or Secure MCP Tunnel for public access.
-- **Bridge policy** gates roots, deny globs, shell mode, timeouts, and traces.
-- **Tool tiers** guide ChatGPT toward safer project and Codex Runner workflows.
-- **Local app** shows policy, tool calls, logs, diffs, downloads, and cancellable tasks.
-
-## 30-Second Install
-
-Linux one-click installer:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | bash
-```
-
-Optional Linux tunnel helpers:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | TUNNEL=cloudflare bash
-curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | TUNNEL=ngrok NGROK_AUTHTOKEN=... NGROK_DOMAIN=my-bridge.ngrok-free.app bash
-```
-
-Temporary GitHub npx install, no clone required:
-
-```bash
-npx github:ZhWang1104/chatgpt2localbridge setup --root ~/Projects
-npx github:ZhWang1104/chatgpt2localbridge start
-```
-
-Local clone flow:
+- Node.js 20 or newer
+- Git
+- macOS for launchd and the native application
+- `rg` for fast search (optional; a bounded built-in fallback is included)
+- `codegraph` for relationship context (optional)
+- `cloudflared` only when exposing a fixed public connector URL
 
 ```bash
 git clone https://github.com/ZhWang1104/chatgpt2localbridge.git
 cd chatgpt2localbridge
-npm install
+npm ci
 npm run build
-node dist/index.js setup --root ~/Projects
+
+node dist/index.js setup --root /absolute/path/to/your/repository
+node dist/index.js install-service
 node dist/index.js doctor
+```
+
+The setup command creates:
+
+```text
+~/.chatgpt2localbridge/
+├── .env.local           local secrets and runtime settings (mode 0600)
+├── bridge.policy.json   approved roots and deny rules
+├── logs/
+└── repositories/        manifests, symbols, chunks, and scan state
+```
+
+Verify the running service:
+
+```bash
+curl --fail http://127.0.0.1:3838/health
+open http://127.0.0.1:3838/app
+```
+
+To run in the foreground instead of installing launchd:
+
+```bash
 node dist/index.js start
 ```
 
-Health check:
+An install without cloning is also supported:
 
 ```bash
-curl -sS http://127.0.0.1:3838/health
+npx github:ZhWang1104/chatgpt2localbridge setup --root ~/Projects/my-repo
+npx github:ZhWang1104/chatgpt2localbridge start
 ```
 
-Local operator console:
+## ChatGPT Custom Connector
 
-```text
-http://127.0.0.1:3838/app
-```
-
-Native macOS app:
+A hosted ChatGPT connector needs a stable HTTPS URL. The recommended setup is a
+Cloudflare named tunnel on a domain in your Cloudflare account:
 
 ```bash
-npm run macos:install
-open /Applications/ChatGPT2LocalBridge.app
+cloudflared tunnel login
+node dist/index.js install-tunnel --hostname bridge.example.com
 ```
 
-The macOS app is a native AppKit/SwiftUI desktop console that embeds Node and
-the production TypeScript engine, uses the repository logo as its `.icns` icon, manages the local `3838`
-service, and shows the ChatGPT-visible MCP tool catalog, browser bundle prompts,
-approved roots, editable policy, logs, connector tool calls, skill reads, write
-events, and cloud-download trace records without needing the browser console.
-
-The native **Policy Center** edits the local policy safely:
-
-- workspace roots stay separate from skill roots
-- the default skill root is `~/.codex/skills`
-- saving creates `bridge.policy.backup.json`
-- policy changes are written to local audit trace
-- the app warns if you expose broad paths such as `~/.codex`
-
-## Downloads And Releases
-
-GitHub Releases provide prebuilt artifacts for local testing:
-
-- `ChatGPT2LocalBridge-macos-*.dmg`: drag-and-run macOS native control
-  console with the production TypeScript engine bundled inside the app.
-- `ChatGPT2LocalBridge-macos-*.app.zip`: native macOS control console with the
-  same production engine bundled inside the app.
-- `ChatGPT2LocalBridge-windows-x64-rust-preview.zip`: Windows Rust-native local
-  console preview.
-- `chatgpt2localbridge-*.tgz`: npm package for the full TypeScript OAuth MCP
-  bridge.
-
-The Windows artifact is currently a Rust preview, while the full OAuth connector
-surface remains the Node/TypeScript package. Release builds are generated by
-`.github/workflows/release.yml` when a `v*` tag is pushed.
-See [Windows Roadmap](./docs/windows-roadmap.md) for the current preview scope.
-
-Release route:
-
-```bash
-npm run typecheck
-npm test
-npm run macos:app
-git tag v0.1.x
-git push origin v0.1.x
-```
-
-The release workflow attaches macOS `.dmg` / `.app.zip`, a Windows Rust preview
-zip, an npm tarball, and SHA256 files.
-
-## ChatGPT Connector Setup
-
-### Choose An Auth Mode
-
-ChatGPT's custom connector UI may offer OAuth, No Authentication, and Mixed Authentication. This project supports more than one path, but the safe default depends on where the endpoint is reachable.
-
-| Connector auth | Use when | Notes |
-| --- | --- | --- |
-| OAuth | Any public HTTPS tunnel, including Mac mini with ngrok/Cloudflare or a Linux server tunnel | Recommended default. ChatGPT completes an OAuth code flow and later calls `/mcp` with a bearer token. |
-| No Authentication | Short-lived loopback-only or private-network tests | Works only if the bridge is intentionally running without OAuth. Do not use this on a public tunnel. |
-| Mixed | Advanced per-tool policy where public tools are anonymous and privileged tools require OAuth | Useful later if you split tools by risk. The current public-safe guide keeps the whole connector OAuth-protected. |
-
-If both OAuth and No Authentication appear to work, prefer OAuth for anything reachable from ChatGPT over the internet. No Authentication means the URL itself is the control surface.
-
-Expose the local server through HTTPS:
-
-```bash
-ngrok http 3838 --url=your-fixed-domain.ngrok-free.dev
-```
-
-Then create a ChatGPT Custom Connector:
+Create the connector where Custom Connectors are available:
 
 | Field | Value |
 | --- | --- |
 | Name | `ChatGPT2LocalBridge` |
-| URL | `https://your-fixed-domain.ngrok-free.dev/mcp` |
-| Auth | OAuth |
+| URL | `https://bridge.example.com/mcp` |
+| Authentication | OAuth |
 
-When the authorization page opens, enter the unlock code from `.env.local`. Do not paste unlock codes or tokens into public chats, issues, screenshots, or commits.
+When the local authorization page opens, enter the unlock code stored in
+`~/.chatgpt2localbridge/.env.local`. Never paste that code, OAuth tokens, tunnel
+credentials, or the environment file into a chat, issue, screenshot, or commit.
 
-### Linux Server Setup
-
-Linux works the same way as Mac mini: run one bridge next to the files you want ChatGPT to see, expose that bridge through HTTPS, then create a separate ChatGPT connector for that machine.
-
-One-click install directly on the Linux host:
+For Linux hosts, use the [Linux deployment guide](./docs/linux-deploy.md) or:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | bash
 ```
 
-Common options:
+## Large Repository Workflow
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/ZhWang1104/chatgpt2localbridge/main/scripts/linux-one-click-install.sh | WORKSPACE_ROOT=/srv/workspace BRIDGE_PORT=3900 bash
+The bridge does not claim that one model context can retain an entire large
+repository. Instead, it makes completeness measurable and reading resumable.
+
+```text
+repo_open(projectPath)
+repo_map(snapshotId) until the manifest is fully paged
+repo_context(snapshotId, task) for task-focused orientation
+repo_scan(action=start, snapshotId)
+
+repeat:
+  repo_scan(action=next, scanId)
+  read and summarize the returned chunks
+  repo_scan(action=ack, scanId, chunkIds, summaries)
+
+repo_coverage(snapshotId, scanId)
 ```
 
-The installer prints the exact ChatGPT Connector fields, local health checks,
-ngrok registration requirements, Cloudflare registration requirements, and a
-longer agent prompt for safe remote setup.
+A full-read claim is valid only when:
 
-Deploy from an existing local clone to a remote Linux host:
+- `trackedFiles == accountedFiles`
+- every text chunk has been delivered and acknowledged
+- `failedChunks == 0`
+- AST failures are empty for supported languages
+- unsupported, binary, denied, and missing files remain explicitly visible
 
-```bash
-REMOTE=linux-box \
-REMOTE_WORKSPACE=/srv/workspace \
-REMOTE_ALLOWED_ROOTS="/srv/workspace,/home/agent/projects" \
-PUBLIC_BASE_URL=https://linux-bridge.example.com \
-bash scripts/deploy-linux-bridge.sh
-```
+CodeGraph is a relationship layer, not the completeness metric. Raw Git
+inventory and source chunks remain authoritative even when CodeGraph is absent
+or covers fewer files.
 
-Create a second connector such as `ChatGPT2LocalBridge Linux` with:
+### Multiple Branches
 
-| Field | Value |
+Use one stable Git worktree per branch and call `repo_open` for each worktree.
+Snapshots include branch, commit, dirty state, and content hashes. `repo_read`
+rejects stale snapshots after files change, while `repo_compare` compares two
+refs without checking out either branch.
+
+See [Large Repository Workflow](./docs/large-repositories.md) for the full
+coverage contract.
+
+## Repository Tools
+
+| Tool | Purpose |
 | --- | --- |
-| URL | `https://linux-bridge.example.com/mcp` |
-| Auth | OAuth |
+| `repo_open` | Build a branch-bound manifest, chunks, and optional symbols |
+| `repo_map` | Page through every accounted tracked file |
+| `repo_read` | Read an immutable chunk or bounded line range |
+| `repo_search` | Search raw repository text with exact paths and lines |
+| `repo_symbols` | Build or search AST definitions and references |
+| `repo_context` | Combine raw search, AST symbols, and fresh CodeGraph context |
+| `repo_compare` | Compare commits or branches without changing the worktree |
+| `repo_scan` | Start, continue, acknowledge, and resume a full scan |
+| `repo_coverage` | Report file, line, chunk, delivery, and failure coverage |
 
-Use separate connectors for separate machines so each policy can stay narrow. See [Linux deployment](./docs/linux-deploy.md).
+Other tool families cover bounded file access, project bundles, Git diffs,
+skills, handoffs, Codex Runner tasks, tests, traces, and local diagnostics. The
+generated catalog is available in [`assets/mcp-tools.json`](./assets/mcp-tools.json).
 
-## Screenshot Walkthrough
+## Tool Profiles
 
-| Step | Preview |
+| Profile | Use |
 | --- | --- |
-| Initialize local policy | ![Initialize](./docs/assets/screenshots/01-init.png) |
-| Run local MCP server | ![Run](./docs/assets/screenshots/02-run.png) |
-| Review Policy Center | ![Policy Center](./docs/assets/screenshots/09-policy-center.png) |
-| Check `/health` | ![Health](./docs/assets/screenshots/03-health.png) |
-| Create connector | ![Connector](./docs/assets/screenshots/05-connector.png) |
-| Authorize | ![Authorize](./docs/assets/screenshots/06-authorize.png) |
-| Test file listing | ![Success](./docs/assets/screenshots/07-success.png) |
+| `readonly` | Recommended public connector profile for repository analysis |
+| `minimal` / `chatgpt-app` | Legacy bounded app and write workflows |
+| `standard` / `normal` | Project, Git, tests, skills, traces, and Codex tasks |
+| `full` / `debug` | Trusted local debugging with low-level file, process, and shell tools |
+| `codex-runner-only` | High-level Codex task control without general project tools |
 
-## macOS Screenshot CLI
+`setup` selects `readonly`. Do not enable `standard` or `full` on a public
+connector unless local writes and command execution are intentionally required.
 
-Use the Mac mini helper when you need real screenshots for README, GitHub Pages,
-release notes, or social posts. Outputs default to `docs/assets/app_screenshots`.
+## Security Model
 
-```bash
-npm run shot:selection   # choose any screen area
-npm run shot:window      # click any window
-npm run shot:full        # capture the full screen
-npm run shot:app         # capture the ChatGPT2LocalBridge window bounds
-```
+- Startup fails if the policy is missing, malformed, or invalid.
+- All paths are resolved canonically and must remain inside an approved root.
+- Traversal and existing or dangling symlink escapes are rejected.
+- Deny globs apply to reads, listings, search, manifests, symbols, and scans.
+- HTTP binds to `127.0.0.1`; the tunnel is a separate explicit boundary.
+- Browser CORS is restricted to configured origins.
+- Shell execution is disabled by default.
+- The default OAuth scope is `workspace:read`.
+- Runtime secrets stay in `.env.local`, which is excluded from Git and written
+  with owner-only permissions.
 
-Direct usage:
+Review [`bridge.policy.example.json`](./bridge.policy.example.json) and the
+[security model](./docs/security.md) before expanding roots or enabling writes.
 
-```bash
-scripts/mac-screenshot.sh --rect 100,120,1280,760 --out docs/assets/app_screenshots/dashboard.png
-scripts/mac-screenshot.sh --app "ChatGPT2LocalBridge" --open --copy-path
-```
+## CLI
 
-If macOS blocks capture, grant Screen Recording permission to Terminal, iTerm,
-or the agent process in System Settings.
-
-Full guides:
-
-- [Human setup tutorial](./docs/human-tutorial.html)
-- [Agent + Computer Use tutorial](./docs/agent-computer-use.html)
-- [Visual showcase gallery](./docs/showcase.html)
-- [Markdown human tutorial](./docs/tutorial-human.md)
-- [Markdown agent tutorial](./docs/tutorial-agent-computer-use.md)
-
-## Main MCP Tools
-
-### Tool Tiers
-
-| Tier | Default use | Tools |
-| --- | --- | --- |
-| High-level repository workflow | Recommended entry point for Web ChatGPT analysis | `repo_open`, `repo_context`, `repo_scan`, `repo_coverage` |
-| High-level agent workflow | Explicit local execution through Codex Runner | `codex.task_start`, `codex.status`, `codex.result` |
-| Mid-level project workflow | Bounded context, policy, diffs, and tests | `project.bundle`, `policy.read`, `git.diff`, `test.run` |
-| Low-level debug primitives | Advanced local troubleshooting only; avoid as the Web ChatGPT path | `file.read_path`, `file.write`, `shell.exec` |
-
-The roadmap tracks the move from low-level primitives toward a safer Codex Runner surface. See [ROADMAP.md](./ROADMAP.md).
-
-### Tool Profiles
-
-ChatGPT2LocalBridge already uses a profile gate to progressively expose tools:
-a small public connector surface, a standard daily surface, and a full debug
-surface. For clearer public docs, it now accepts both product-facing profile
-names and the earlier internal aliases:
-
-| Profile | Alias | Use |
-| --- | --- | --- |
-| `readonly` | `readonly` | Recommended default for ChatGPT Pro: repository manifest, raw reads/search, CodeGraph context, symbols, coverage, and resumable scans. |
-| `minimal` | `chatgpt-app` | Legacy compatibility aliases, including bounded write workflows. |
-| `standard` | `normal` | Project, policy, skills, git, tests, traces, and Codex task workflows. |
-| `full` | `debug` | Trusted local debugging with low-level file, process, shell, and service tools exposed. |
-| `codex-runner-only` | `codex-runner-only` | High-level Codex task control plane without general project tools. |
-
-Set it with:
-
-```bash
-LOCALBRIDGE_TOOL_PROFILE=readonly
-```
-
-Use `readonly` for repository analysis through a public Connector. Enable
-`standard` or `full` only when the local service is intentionally allowed to
-modify or execute code.
-
-`shell_exec` is **not supported in the Web ChatGPT connector profile**. Hosted
-ChatGPT safety checks can block shell-like actions before they ever reach your
-local bridge, especially commands that enumerate files, use pipes, or combine
-multiple shell operators. For a smoother connector experience, use
-`file_list` / `local_list_dir` for directories, `batch_read` for bounded
-multi-file reads, and `handoff_create` -> `codex_task_start` when local Codex
-CLI should run commands. The raw shell tools remain debug-only under the `full`
-/ `debug` profile for trusted local troubleshooting.
-
-This profile model is part of the bridge's own tool router and progressive
-disclosure roadmap: expose only the tools needed for the current trust level,
-then let the local app and trace records explain what happened.
-
-| Area | Examples |
+| Command | Purpose |
 | --- | --- |
-| Repository | `repo_open`, `repo_map`, `repo_read`, `repo_search`, `repo_symbols`, `repo_context`, `repo_compare`, `repo_coverage`, `repo_scan` |
-| Project | `project.snapshot`, `project.bundle`, `project.index`, `project.scripts` |
-| Handoff | `handoff.create` |
-| Policy | `policy.read`, `policy.validate` |
-| Skills | `skill.list`, `skill.search`, `skill.read`, `skill.bundle`, `skill.route` |
-| Code | `code.read`, `code.read_range`, `code.search` |
-| Files | `file.list`, `file.read_path`, `batch_read`, `file.stat`, `file.write`, `file.patch`, `file.delete` |
-| Shell/tests | `shell.exec` for local debug only; `test.detect`, `test.run` |
-| Git | `git.status`, `git.diff`, `git.checkpoint`, `git.revert` |
-| Runtime | `workspace.*`, `task.*`, `process.*`, `port.check` |
-| Cloud sync | `cloud.download` |
-| Bridge | `bridge.status`, `bridge.health`, `bridge.logs`, `bridge.activity`, `service.restart` |
+| `setup --root <path>` | Create fail-closed configuration and local secrets |
+| `start` | Run the OAuth/MCP HTTP service in the foreground |
+| `doctor [--json]` | Check configuration, dependencies, roots, and health |
+| `status [--json]` | Show local configuration and service status |
+| `index [--root <path>] [--json]` | Build Git manifest, AST symbols, and sync CodeGraph |
+| `install-service` | Install and start the macOS launchd service |
+| `install-tunnel --hostname <host>` | Create a fixed Cloudflare tunnel and launchd service |
+| `stop` / `restart` | Control the installed bridge service |
 
-The full debug-profile MCP tool catalog is generated from MCP `tools/list` into
-[`assets/mcp-tools.json`](./assets/mcp-tools.json):
+Run `node dist/index.js help` for the current command contract.
+
+## macOS Application
 
 ```bash
-npm run tools:catalog
+npm run macos:app
+open build/macos/ChatGPT2LocalBridge.app
 ```
 
-`project.bundle` is the recommended multi-file context tool. It returns a
-directory summary, selected text files, and optional git diff in one read-only
-call, so ChatGPT can read local first and then create a cloud-side downloadable
-copy from the returned content.
-
-`skill.*` tools make local Codex skills readable through the connector without
-turning the whole Codex runtime directory into a workspace. Configure:
-
-```json
-{
-  "skillRoots": [
-    "/Users/YOUR_USERNAME/.codex/skills"
-  ]
-}
-```
-
-Project-local skills are also discovered from approved project roots at
-`.codex/skills`. Reference files are gated: call `skill.read` on a `SKILL.md`
-first, then pass the returned `activationId` to `skill.bundle` so it can include
-referenced local files such as `references/*.md`.
-
-Do not approve the whole `~/.codex` directory. It can contain sessions,
-attachments, local configuration, and other private runtime files.
-
-## Large Repositories And Multiple Branches
-
-Do not upload a large repository in one MCP response. Use the persistent
-repository workflow:
-
-1. `repo_open` creates a snapshot for the current worktree and branch. Every
-   Git-tracked path receives an explicit `indexed`, `denied`, `binary`,
-   `symlink`, `missing`, or `failed` status.
-2. `repo_map` pages through the full manifest with snapshot-bound cursors.
-3. `repo_symbols` indexes TypeScript, JavaScript, and Python variables,
-   parameters, properties, definitions, and references. Unsupported languages
-   and parse failures remain visible in coverage.
-4. `repo_context` combines raw search, the symbol index, and CodeGraph when its
-   branch/worktree index is current. CodeGraph is never used as proof that all
-   files were covered.
-5. `repo_scan` returns bounded chunks. After reading a batch, call `ack` with
-   the delivered chunk IDs and optional per-chunk summaries. Only acknowledged
-   chunks count toward completion.
-6. `repo_coverage` is the completion gate. It separately reports indexed,
-   delivered, acknowledged, summarized, and failed chunks.
-
-Use one stable Git worktree per active branch. Each snapshot records the real
-path, branch, commit, dirty state, file hashes, and chunk hashes, so cursors and
-scan state cannot silently cross branches. See
-[Large repository workflow](./docs/large-repositories.md).
-
-## Codex Provider Profiles
-
-Codex Runner can use either the normal Codex CLI login or an OpenAI-compatible
-API endpoint. This keeps sub2api optional: run sub2api separately, then point
-the bridge at its `/v1` endpoint.
+Or install it into `/Applications`:
 
 ```bash
-LOCALBRIDGE_CODEX_BIN=/Users/YOUR_USERNAME/.local/bin/codex
-LOCALBRIDGE_CODEX_PROVIDER=sub2api
-LOCALBRIDGE_CODEX_BASE_URL=http://127.0.0.1:4999/v1
-LOCALBRIDGE_CODEX_API_KEY_ENV=SUB2API_KEY
-SUB2API_KEY=...
+npm run macos:install
 ```
 
-The native app has a Codex Provider page for editing these local settings.
-Trace output records the provider kind and base URL host only; API keys are not
-written into tool results or audit logs.
-
-If ChatGPT shows `spawn codex ENOENT`, the connector and handoff tools are
-working, but the background service cannot find the Codex CLI. Set
-`LOCALBRIDGE_CODEX_BIN` to the absolute `codex` path, or install Codex in one
-of the service-friendly locations such as `~/.local/bin`, `/opt/homebrew/bin`,
-or `/usr/local/bin`.
-
-## File Sync And Activity
-
-- Local files can be read by ChatGPT through approved MCP tools.
-- Multiple local files can be bundled with `project.bundle`.
-- MCP-read local file content can be re-emitted by ChatGPT as a cloud-side downloadable artifact when the user wants a copy in the conversation.
-- For stable Trace Studio grouping, ask ChatGPT to call `trace.session_start` at the beginning of each conversation, and `task.start` before long multi-step work.
-- ChatGPT/App-provided cloud file download URLs can be written back to local disk with `cloud.download`.
-- Tool calls are persisted to `tool-calls.jsonl`.
-- File writes, downloads, tasks, processes, and service restarts are persisted to `audit.jsonl`.
-- The local console at `/app` and native macOS app show status, tool calls, and audit events.
-
-See [file sync flows](./docs/sync-flows.md).
-
-## Field Evidence
-
-The current release includes sanitized evidence from local and ChatGPT connector
-tests: build/test output, macOS app installation, tool catalog counts, write
-smoke tests, and connector troubleshooting notes. See
-[`docs/evidence.md`](./docs/evidence.md).
-
-Latest connector proof: after recreating the ChatGPT custom connector as
-`attachlocal2chatgpt-v3`, ChatGPT's action list exposed the high-level handoff
-and Codex Runner entry points:
-
-<p align="center">
-  <img src="./docs/assets/evidence/chatgpt-v3-codex-runner-tools.svg" alt="ChatGPT connector evidence showing handoff_create, codex_task_start, codex_status, and codex_result" width="900" />
-</p>
-
-Public-safe safety evidence from field testing:
-
-<p align="center">
-  <img src="./docs/assets/evidence/batch-read-safety-note.svg" alt="Evidence card explaining hosted safety checks can over-block large batch reads and the bridge now prefers bounded batch_read" width="49%" />
-  <img src="./docs/assets/evidence/shell-exec-safety-block.svg" alt="Evidence card showing shell_exec can be blocked by hosted ChatGPT safety checks and is not exposed in the Web ChatGPT connector profile" width="49%" />
-</p>
-
-Field note: keep `xhigh` / `XHigh` mode off by default. In local testing it
-produced more connector/tool-call errors than the normal profile, so use it only
-for focused debugging with trace capture enabled.
-
-Field note: `codex.result` and `codex_result` return compact summaries by
-default. Full logs, diffs, and handoff metadata are opt-in with `includeLog`,
-`includeDiff`, and `includeHandoff` because hosted ChatGPT safety checks can
-block large execution records or structured payloads.
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=Harzva%2Fchatgpt2localbridge&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=Harzva/chatgpt2localbridge&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=Harzva/chatgpt2localbridge&type=date&legend=top-left" />
-   <img alt="Star History Chart for Harzva/chatgpt2localbridge" src="https://api.star-history.com/chart?repos=Harzva/chatgpt2localbridge&type=date&legend=top-left" />
- </picture>
-</a>
-
-## Security Defaults
-
-- Missing or invalid policy files stop startup; there is no home-directory fallback.
-- The default tool profile and OAuth scope are `readonly` / `workspace:read`.
-- The HTTP server binds only to `127.0.0.1`; a tunnel is the explicit public boundary.
-- Canonical-path checks reject traversal and symlink escapes, and deny globs apply to reads, listings, searches, manifests, and scans.
-- Do not run unauthenticated on a public URL.
-- Keep `allowedProjectRoots` narrow.
-- Keep `skillRoots` narrow; prefer `~/.codex/skills`, not `~/.codex`.
-- Never commit `.env.local`, `bridge.policy.json`, OAuth stores, tokens, cookies, or unlock codes.
-- Prefer OAuth over URL tokens.
-- Set `LOCALBRIDGE_DASHBOARD_TOKEN` before using `/app`.
-- Review shell deny rules before enabling shell access for broad workspaces.
-
-See [security model](./docs/security.md).
-
-## Alternatives
-
-OAuth + fixed HTTPS tunnel is the default because it fits ChatGPT Custom Connectors well. Other options exist:
-
-- OpenAI Secure MCP Tunnel, when available to your workspace
-- Cloudflare Tunnel
-- VPS reverse proxy
-- Static bearer token for private clients
-- Loopback-only no-auth testing
-
-See [alternatives](./docs/alternatives.md).
-
-## GitHub Pages
-
-The static product site lives in [`docs/`](./docs/index.html). The repository includes a GitHub Actions workflow that deploys it to GitHub Pages after pushing to `main`.
+The application embeds Node, its non-system dynamic libraries, production
+dependencies, and the same TypeScript engine used by the CLI. It provides a
+local console for service status, policy, logs, tool activity, and connector
+operations.
 
 ## Development
 
 ```bash
-npm install
+npm ci
 npm run typecheck
-npm run tools:catalog
 npm test
+npm run tools:catalog
 npm pack --dry-run
-cargo test --manifest-path rust/chatgpt2localbridge-rs/Cargo.toml
-cargo build --manifest-path rust/chatgpt2localbridge-rs/Cargo.toml
-cargo build --release --manifest-path rust/chatgpt2localbridge-rs/Cargo.toml
-npm run macos:app
-npm run macos:install
 ```
 
-Render README and docs assets:
+Build the macOS application with `npm run macos:app`. The complete test suite
+covers MCP profiles, OAuth metadata, CORS, policy failures, denied paths,
+symlink escapes, CLI setup, branch isolation, UTF-8 chunking, symbols, and
+resumable scans.
 
-```bash
-npm run docs:assets
-npm run docs:preview
-```
+## Documentation
 
-## Public Release Checklist
+- [Architecture](./docs/architecture.md)
+- [Large repository workflow](./docs/large-repositories.md)
+- [Operations](./docs/operations.md)
+- [Security model](./docs/security.md)
+- [Authentication modes](./docs/authentication-modes.md)
+- [Linux deployment](./docs/linux-deploy.md)
+- [Canonical runtime and coverage ADR](./docs/decisions/001-canonical-runtime-and-repository-coverage.md)
+- [Roadmap](./ROADMAP.md)
 
-- [ ] Enable GitHub Pages with the included workflow.
-- [ ] Confirm `npm test` passes in GitHub Actions.
-- [ ] Confirm the macOS `.dmg` and `.app.zip` download, unzip/mount, and launch.
-- [ ] Confirm the Windows Rust preview starts `http://127.0.0.1:3842/app`.
-- [ ] Keep `.env.local` and `bridge.policy.json` untracked.
-- [ ] Verify the ChatGPT connector uses OAuth and the correct `/mcp` URL.
+## Limits And Non-Goals
 
-## License
+- This project does not automate or scrape the ChatGPT website. It uses MCP and
+  ChatGPT Custom Connectors.
+- It does not upload a repository automatically. Content leaves the machine
+  only in tool responses requested by the authorized client.
+- A scan proves accountable delivery, not permanent model memory. Summaries and
+  task-specific retrieval are still necessary for large systems.
+- AST symbol coverage currently targets TypeScript, JavaScript, and Python.
+  Other text files remain searchable and chunk-readable.
+- CodeGraph follows a concrete worktree. Use separate worktrees for simultaneous
+  branch indexes.
 
-MIT
+## Upstream And License
+
+- Original project and author:
+  [`Harzva/chatgpt2localbridge`](https://github.com/Harzva/chatgpt2localbridge)
+- Enhanced fork:
+  [`ZhWang1104/chatgpt2localbridge`](https://github.com/ZhWang1104/chatgpt2localbridge)
+- License: [MIT](./LICENSE)
+
+Contributions should preserve upstream attribution and keep the default public
+connector surface narrow, read-only, and auditable.
